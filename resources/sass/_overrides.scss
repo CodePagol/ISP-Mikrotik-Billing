@@ -1,0 +1,356 @@
+// =============================================================================
+// _overrides.scss — Bootstrap Override Styles
+//
+// RULE: শুধুমাত্র সেই CSS rules রাখা হয়েছে যেখানে
+//       theme value != Bootstrap 5 default value
+//
+// Bootstrap 5 defaults vs CodePagol theme overrides
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// 1. CSS Custom Properties (Root Variables)
+//    All --cp-* variables are theme-specific additions/overrides
+// -----------------------------------------------------------------------------
+:root,
+[data-bs-theme=light] {
+    // Colors — all differ from Bootstrap's --bs-* equivalents
+    --cp-blue:      #2c7be5;   // BS: #0d6efd → OVERRIDE
+    --cp-indigo:    #727cf5;
+    --cp-purple:    #6b5eae;
+    --cp-pink:      #ff679b;
+    --cp-red:       #e63757;
+    --cp-orange:    #fd7e14;
+    --cp-yellow:    #f5803e;   // BS: #ffc107 → OVERRIDE
+    --cp-green:     #00d27a;   // BS: #198754 → OVERRIDE
+    --cp-teal:      #02a8b5;   // BS: #20c997 → OVERRIDE
+    --cp-cyan:      #27bcfd;   // BS: #0dcaf0 → OVERRIDE
+
+    // Semantic colors
+    --cp-primary:   #2c7be5;   // BS: #0d6efd → OVERRIDE
+    --cp-secondary: #748194;   // BS: #6c757d → OVERRIDE
+    --cp-success:   #00d27a;   // BS: #198754 → OVERRIDE
+    --cp-info:      #27bcfd;   // BS: #0dcaf0 → OVERRIDE
+    --cp-warning:   #f5803e;   // BS: #ffc107 → OVERRIDE
+    --cp-danger:    #e63757;   // BS: #dc3545 → OVERRIDE
+    --cp-light:     #f9fafd;   // BS: #f8f9fa → OVERRIDE
+    --cp-dark:      #0b1727;   // BS: #212529 → OVERRIDE
+
+    // Typography
+    --cp-body-font-family: "Open Sans", -apple-system, BlinkMacSystemFont,
+        "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --cp-font-sans-serif:  "Poppins", -apple-system, BlinkMacSystemFont,
+        "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --cp-body-color: #5e6e82;  // BS: #212529 → OVERRIDE
+    --cp-body-bg:    #edf2f9;  // BS: #fff    → OVERRIDE
+
+    // Border
+    --cp-border-color:     #d8e2ef;   // BS: #dee2e6  → OVERRIDE
+    --cp-border-radius:    0.25rem;   // BS: 0.375rem → OVERRIDE
+    --cp-border-radius-sm: 0.25rem;   // BS: 0.25rem  → SAME
+    --cp-border-radius-lg: 0.375rem;  // BS: 0.5rem   → OVERRIDE
+    --cp-border-radius-xl: 1rem;
+    --cp-border-radius-xxl: 2rem;
+    --cp-border-radius-pill: 50rem;
+
+    // Box shadow
+    --cp-box-shadow:    0 7px 14px 0 rgba(65, 69, 88, .10), 0 3px 6px 0 rgba(0, 0, 0, .07);
+    --cp-box-shadow-sm: 0 .125rem .25rem rgba(0, 0, 0, .075);
+    --cp-box-shadow-lg: 0 1rem 4rem rgba(0, 0, 0, .175);
+
+    // Focus
+    --cp-focus-ring-color: rgba(44, 123, 229, .25);
+
+    // Link
+    --cp-link-color:       #2c7be5;   // BS: #0d6efd → OVERRIDE
+    --cp-link-hover-color: #2362b7;
+
+    // Heading
+    --cp-secondary-color: #344050;
+    --cp-heading-color:   var(--cp-secondary-color);
+
+    // Code
+    --cp-code-color: #ff679b;  // BS: #d63384 → OVERRIDE
+
+    // Highlight
+    --cp-highlight-bg: #fde6d8;  // BS: #fff3cd → OVERRIDE
+}
+
+[data-bs-theme=dark] {
+    --cp-body-color:     #9da9bb;
+    --cp-body-bg:        #0b1727;
+    --cp-border-color:   rgba(255, 255, 255, .05);
+    --cp-box-shadow:     0 7px 14px 0 rgba(3, 12, 51, .15), 0 3px 6px 0 rgba(0, 0, 0, .2);
+    --cp-emphasis-bg:    #121e2d;
+    --cp-dark:           rgba(35, 46, 60, .25);
+}
+
+// -----------------------------------------------------------------------------
+// 2. Typography
+//    Bootstrap heading: font-family=inherit → OVERRIDE to Poppins
+// -----------------------------------------------------------------------------
+h1, .h1, h2, .h2, h3, .h3, h4, .h4, h5, .h5, h6, .h6 {
+    font-family: var(--cp-font-sans-serif);
+    color: var(--cp-heading-color);
+}
+
+// -----------------------------------------------------------------------------
+// 3. Body
+//    BS: background-color:#fff, color:#212529 → OVERRIDE
+// -----------------------------------------------------------------------------
+body {
+    font-family: var(--cp-body-font-family);
+    color: var(--cp-body-color);
+    background-color: var(--cp-body-bg);
+}
+
+// -----------------------------------------------------------------------------
+// 4. HR — BS opacity:0.25 → theme:1 (OVERRIDE)
+// -----------------------------------------------------------------------------
+hr {
+    color: var(--cp-border-color);
+    opacity: var(--cp-hr-opacity, 1);
+}
+
+// -----------------------------------------------------------------------------
+// 5. Card
+// -----------------------------------------------------------------------------
+.card {
+    --bs-card-border-radius: var(--cp-border-radius);
+    --bs-card-border-color:  var(--cp-border-color);
+    box-shadow: var(--cp-box-shadow);
+}
+
+// -----------------------------------------------------------------------------
+// 6. Navbar
+// -----------------------------------------------------------------------------
+.navbar { --bs-navbar-padding-y: 0.5625rem; }
+
+.navbar-glass-shadow { box-shadow: var(--cp-box-shadow); }
+
+.navbar-vertical.navbar-glass {
+    background-color: var(--cp-navbar-vertical-default-bg-color);
+    backdrop-filter: saturate(200%) blur(10px);
+    -webkit-backdrop-filter: saturate(200%) blur(10px);
+}
+
+// -----------------------------------------------------------------------------
+// 7. Buttons — BS font-weight:400 → OVERRIDE:500; border-radius OVERRIDE
+// -----------------------------------------------------------------------------
+.btn {
+    --bs-btn-border-radius: var(--cp-border-radius);
+    --bs-btn-font-weight: 500;
+}
+
+.btn-primary {
+    --bs-btn-bg:              var(--cp-primary);
+    --bs-btn-border-color:    var(--cp-primary);
+    --bs-btn-hover-bg:        #2566be;
+    --bs-btn-hover-border-color: #2566be;
+    --bs-btn-active-bg:       #2566be;
+    --bs-btn-active-border-color: #2566be;
+    --bs-btn-disabled-bg:     var(--cp-primary);
+    --bs-btn-disabled-border-color: var(--cp-primary);
+}
+
+.btn-success {
+    --bs-btn-bg:           var(--cp-success);
+    --bs-btn-border-color: var(--cp-success);
+    --bs-btn-hover-bg:     #00ae65;
+    --bs-btn-hover-border-color: #00ae65;
+}
+
+.btn-danger {
+    --bs-btn-bg:           var(--cp-danger);
+    --bs-btn-border-color: var(--cp-danger);
+    --bs-btn-hover-bg:     #bf2e48;
+    --bs-btn-hover-border-color: #bf2e48;
+}
+
+.btn-warning {
+    --bs-btn-bg:           var(--cp-warning);
+    --bs-btn-border-color: var(--cp-warning);
+    --bs-btn-color:        #fff;       // BS: #000 → OVERRIDE (orange needs white text)
+    --bs-btn-hover-bg:     #cb6a33;
+    --bs-btn-hover-border-color: #cb6a33;
+}
+
+.btn-info {
+    --bs-btn-bg:           var(--cp-info);
+    --bs-btn-border-color: var(--cp-info);
+    --bs-btn-hover-bg:     #209cd2;
+    --bs-btn-hover-border-color: #209cd2;
+}
+
+// -----------------------------------------------------------------------------
+// 8. Form Controls — focus border/shadow OVERRIDE
+// -----------------------------------------------------------------------------
+.form-control:focus,
+.form-select:focus {
+    border-color: #96bdf2;
+    box-shadow: 0 0 0 0.25rem var(--cp-focus-ring-color);
+}
+
+.form-control::placeholder {
+    color: var(--cp-gray-400, #b6c1d2);
+}
+
+// -----------------------------------------------------------------------------
+// 9. Badge — border-radius + font-weight OVERRIDE
+// -----------------------------------------------------------------------------
+.badge {
+    --bs-badge-border-radius: var(--cp-border-radius);
+    font-weight: 600;
+}
+
+// -----------------------------------------------------------------------------
+// 10. Table
+// -----------------------------------------------------------------------------
+.table {
+    --bs-table-border-color: var(--cp-border-color);
+}
+
+// -----------------------------------------------------------------------------
+// 11. Alert
+// -----------------------------------------------------------------------------
+.alert {
+    --bs-alert-border-radius: var(--cp-border-radius);
+}
+
+// -----------------------------------------------------------------------------
+// 12. Modal
+// -----------------------------------------------------------------------------
+.modal-content {
+    --bs-modal-border-radius: var(--cp-border-radius-lg);
+    box-shadow: var(--cp-box-shadow-lg);
+}
+
+// -----------------------------------------------------------------------------
+// 13. Dropdown
+// -----------------------------------------------------------------------------
+.dropdown-menu {
+    --bs-dropdown-bg:                #fff;
+    --bs-dropdown-border-color:      var(--cp-border-color);
+    --bs-dropdown-border-radius:     var(--cp-border-radius);
+    --bs-dropdown-link-hover-color:  #2a3441;
+    --bs-dropdown-link-hover-bg:     #f9fafd;
+    box-shadow: var(--cp-box-shadow);
+}
+
+// -----------------------------------------------------------------------------
+// 14. List Group
+// -----------------------------------------------------------------------------
+.list-group {
+    --bs-list-group-border-radius: var(--cp-border-radius);
+    --bs-list-group-bg:            #fff;
+    --bs-list-group-border-color:  var(--cp-border-color);
+}
+
+// -----------------------------------------------------------------------------
+// 15. Popover
+// -----------------------------------------------------------------------------
+.popover {
+    --bs-popover-border-color:  var(--cp-border-color);
+    --bs-popover-border-radius: var(--cp-border-radius-lg);
+    --bs-popover-header-bg:     #f9fafd;
+    box-shadow: var(--cp-box-shadow);
+}
+
+// -----------------------------------------------------------------------------
+// 16. Toast
+// -----------------------------------------------------------------------------
+.toast {
+    --bs-toast-bg:            rgba(255, 255, 255, .85);
+    --bs-toast-border-color:  var(--cp-border-color);
+    --bs-toast-border-radius: var(--cp-border-radius);
+    --bs-toast-header-bg:     rgba(255, 255, 255, .85);
+}
+
+// -----------------------------------------------------------------------------
+// 17. Pagination — primary color OVERRIDE
+// -----------------------------------------------------------------------------
+.page-item.active .page-link {
+    background-color: var(--cp-primary);
+    border-color:     var(--cp-primary);
+}
+
+.page-link {
+    color: var(--cp-primary);
+    --bs-pagination-border-color:  var(--cp-border-color);
+    --bs-pagination-border-radius: var(--cp-border-radius);
+
+    &:hover { color: var(--cp-link-hover-color); }
+}
+
+// -----------------------------------------------------------------------------
+// 18. Progress bar
+// -----------------------------------------------------------------------------
+.progress-bar { background-color: var(--cp-primary); }
+
+// -----------------------------------------------------------------------------
+// 19. Input Group
+// -----------------------------------------------------------------------------
+.input-group-text {
+    background-color: var(--cp-gray-200, #edf2f9);  // BS: #e9ecef → OVERRIDE
+    border-color: var(--cp-border-color);
+    color: var(--cp-body-color);
+}
+
+// -----------------------------------------------------------------------------
+// 20. Accordion
+// -----------------------------------------------------------------------------
+.accordion-button {
+    color: var(--cp-body-color);  // BS: #212529 → OVERRIDE
+    --bs-accordion-border-color:  var(--cp-border-color);
+    --bs-accordion-border-radius: var(--cp-border-radius);
+
+    &:not(.collapsed) {
+        color: var(--cp-primary);
+        background-color: var(--cp-primary-bg-subtle, #d9e7fa);
+        box-shadow: inset 0 -1px 0 var(--cp-border-color);
+    }
+}
+
+// -----------------------------------------------------------------------------
+// 21. Background color utilities — all OVERRIDE Bootstrap defaults
+// -----------------------------------------------------------------------------
+.bg-primary { background-color: var(--cp-primary) !important; }
+.bg-success { background-color: var(--cp-success) !important; }
+.bg-info    { background-color: var(--cp-info)    !important; }
+.bg-warning { background-color: var(--cp-warning) !important; }
+.bg-danger  { background-color: var(--cp-danger)  !important; }
+.bg-dark    { background-color: var(--cp-dark)    !important; }
+
+// -----------------------------------------------------------------------------
+// 22. Text color utilities
+// -----------------------------------------------------------------------------
+.text-primary { color: var(--cp-primary) !important; }
+.text-success { color: var(--cp-success) !important; }
+.text-info    { color: var(--cp-info)    !important; }
+.text-warning { color: var(--cp-warning) !important; }
+.text-danger  { color: var(--cp-danger)  !important; }
+.text-muted   { color: var(--cp-gray-600, #748194) !important; }
+
+// -----------------------------------------------------------------------------
+// 23. Border color utilities
+// -----------------------------------------------------------------------------
+.border-primary { border-color: var(--cp-primary) !important; }
+.border-success { border-color: var(--cp-success) !important; }
+.border-danger  { border-color: var(--cp-danger)  !important; }
+.border-warning { border-color: var(--cp-warning) !important; }
+
+// =============================================================================
+// NOT overridden (same as Bootstrap default):
+//   .w-25/50/75/100, .p-*, .m-*, .d-flex, .d-block, etc.
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// 24. intl-tel-input Styling Overrides
+// -----------------------------------------------------------------------------
+.iti {
+    display: block !important;
+    width: 100%;
+}
+.iti__country-list {
+    z-index: 9999 !important;
+    color: #212529 !important;
+}

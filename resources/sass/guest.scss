@@ -1,0 +1,676 @@
+@import 'breakpoints';
+
+$teal-green: #06ad73;
+$teal-green-light: #1dae7cc3;
+$teal-green-dark: #8fe7c87c;
+$text-opacity : 1;
+
+* {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: "Playfair Display", 'Times New Roman', Times, serif;
+    line-height: 1.5;
+    color: #000000;
+    background-color: #e2eef0;
+    overflow-x: hidden;
+}
+
+html {
+    box-sizing: border-box;
+    font-size: 62.5%;
+
+    *,
+    *:before,
+    *:after {
+        box-sizing: inherit;
+    }
+}
+.audiowide-regular {
+    font-family: "Audiowide", sans-serif;
+    font-weight: 400;
+    font-style: normal;
+}
+.audiowide-bold {
+    font-family: "Audiowide", sans-serif;
+    font-weight: 700;
+    font-style: normal;
+}
+.audiowide-italic {
+    font-family: "Audiowide", sans-serif;
+    font-weight: 500;
+    font-style: italic;
+}
+.playfair-display-500 {
+    font-family: "Playfair Display", serif;
+    font-optical-sizing: auto;
+    font-weight: 500;
+    font-style: normal;
+}
+
+section {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    z-index: 999; /* (optional) to keep it on top */
+    background: #ffffff; /* (optional) to avoid transparency */
+}
+
+section .air {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 100px;
+    background: url(../images/wave.png);
+    background-size: 1000px 100px;
+}
+section .air.air1 {
+    animation: wave 30s linear infinite;
+    z-index: 1000;
+    opacity: 1;
+    animation-delay: 0s;
+    bottom: 0;
+}
+section .air.air2 {
+    animation: wave2 15s linear infinite;
+    z-index: 999;
+    opacity: 0.5;
+    animation-delay: -5s;
+    bottom: 10px;
+}
+section .air.air3 {
+    animation: wave 30s linear infinite;
+    z-index: 998;
+    opacity: 0.2;
+    animation-delay: -2s;
+    bottom: 15px;
+}
+section .air.air4 {
+    animation: wave2 5s linear infinite;
+    z-index: 997;
+    opacity: 0.7;
+    animation-delay: -5s;
+    bottom: 20px;
+}
+@keyframes wave {
+    0% {
+        background-position-x: 0px;
+    }
+    100% {
+        background-position-x: 1000px;
+    }
+}
+@keyframes wave2 {
+    0% {
+        background-position-x: 0px;
+    }
+    100% {
+        background-position-x: -1000px;
+    }
+}
+
+
+
+.container {
+    display: grid;
+    place-items: center;
+        height: 85vh;
+    // @include breakpoint(md, min) {
+    //     height: 85vh;
+    // }
+}
+
+.terms-policy-container {
+    display: grid;
+    place-items: center;
+    align-content: space-around;
+    text-align: center;
+    padding-top: 20px;
+}
+
+.m-0 {
+    margin: 0 !important;
+}
+
+.p-1 {
+    padding: 0.25rem !important;
+}
+.p-2 {
+    padding: 0.5rem !important;
+}
+.p-3 {
+    padding: 1rem !important;
+}
+
+.font-medium {
+    font-weight: 600;
+    font-size: 1.6rem;
+}
+
+.text-red-600 {
+    color: #e63946 !important;
+}
+
+.text-green-600 {
+    color: #008000 !important;
+}
+
+.text-sm {
+    font-size: 0.875rem /* 14px */;
+    line-height: 1.25rem /* 20px */;
+}
+
+.font-medium {
+    font-weight: 500;
+}
+
+.mt-3 {
+    margin-top: 1rem !important;
+}
+
+.mb-4 {
+    margin-bottom: 2rem /* 16px */;
+}
+
+.list-disk {
+    list-style-type: disc;
+}
+
+.list-inside {
+    list-style-position: inside;
+}
+
+.text-sm {
+    font-size: 1.4rem;
+}
+
+.d-flex {
+    display: flex;
+}
+.d-flex-column {
+    flex-direction: column;
+}
+.d-flex-row {
+    flex-direction: row;
+}
+.d-flex-center {
+    justify-content: center;
+    align-items: center;
+}
+
+.h-25 {
+    height: 25vh !important;
+}
+.h-50 {
+    height: 50vh !important;
+}
+.h-75 {
+    height: 75vh !important;
+}
+.h-100 {
+    height: 100vh !important;
+}
+.h-100vh {
+    height: 100vh !important;
+}
+
+.d-desktop-only {
+    display: none !important;
+    @include breakpoint(md, min) {
+        display: block !important;
+    }
+}
+
+.d-mobile-only {
+    display: block !important;
+    @include breakpoint(md, min) {
+        display: none !important;
+    }
+}
+
+.auth-logo {
+    width: 100%;
+    height: 100%;
+    object-fit: scale-down;
+    object-position: center;
+}
+
+.box {
+    align-items: center;
+    background-color: white;
+    border: #75a8f5c8 1px solid;
+    box-shadow: $teal-green 0px 0px 15px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column; // ✅ Mobile: top-bottom
+    width: 90%;
+    height: auto;
+    overflow: hidden;
+
+    &__sm {
+        max-width: 700px;
+    }
+
+    &__title {
+        height: 10rem;
+        box-shadow: $teal-green 1px 1px 1px;
+        font-size: 4.5rem;
+        font-weight: bold;
+        color: $teal-green;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    &__image {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+        object-position: center;
+    }
+
+    &__left, &__right {
+        width: 100%;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        font-weight: bold;
+    }
+
+    // ✅ Tablet and up: side by side
+    @include breakpoint(md, min) {
+        flex-direction: row;
+        width: 90%;
+
+        &__left, &__right {
+            height: 100%;
+            width: 50%;
+        }
+
+        &__image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+        }
+    }
+}
+
+.box__image-container {
+    text-align: center;
+    height: 500px;
+
+    .desktop-view,
+    .mobile-view {
+        display: none;
+    }
+
+    img.box__image {
+        width: 100%;
+        height: 100%;
+        object-fit: fill;
+    }
+    // Show desktop view for desktop
+    @include breakpoint(md, min) {
+        .desktop-view {
+            display: block;
+            height: 100%;
+            width: 100%;
+        }
+    }
+
+    // Show mobile view for mobile
+    @include breakpoint(md) {
+        .mobile-view {
+            display: block;
+            width: 100%;
+            height: 150px;
+        }
+        height: auto;
+    }
+}
+
+.form {
+    width: 100%;
+    overflow: hidden;
+    text-align: left;
+    transition: 0.3s;
+    height: auto;
+    opacity: 1;
+    padding: 20px;
+
+    &__title {
+        margin-bottom: 20px;
+        font-size: 1.8rem;
+        font-weight: 600;
+    }
+
+    &__helper {
+        position: relative;
+        margin-bottom: 15px;
+
+        &:last-of-type {
+            margin-bottom: 0;
+        }
+    }
+
+    &__label {
+        position: absolute;
+        bottom: 10px;
+        left: 0;
+        color: #b6b6b6;
+        font-size: 1.4rem;
+        transition: 0.3s;
+    }
+
+    &__input {
+        position: relative;
+        width: 100%;
+        padding: 5px 0;
+        color: #838383;
+        background-color: transparent;
+        border-width: 0;
+        border-bottom: 1px solid #e7e7e7;
+        outline: none;
+        font-size: 1.4rem;
+
+        &::placeholder {
+            opacity: 0;
+        }
+
+        &:not(:placeholder-shown) {
+            & + .form__label {
+                bottom: 25px;
+                color: #838383;
+                font-size: 1.2rem;
+            }
+        }
+
+        &:focus {
+            border-bottom-color: $teal-green;
+
+            & + .form__label {
+                bottom: 25px;
+                color: $teal-green;
+                font-size: 1.2rem;
+            }
+        }
+    }
+
+    &__button {
+        display: block;
+        width: 100%;
+        margin-top: 20px;
+        color: #ffffff;
+        background-color: $teal-green;
+        border: 0;
+        border-radius: 30px;
+        cursor: pointer;
+        font-size: 1.5rem;
+        font-weight: 600;
+        padding: 10px 20px;
+        -webkit-border-radius: 30px;
+        -moz-border-radius: 30px;
+        -ms-border-radius: 30px;
+        -o-border-radius: 30px;
+        transition: background 0.3s ease;
+        -webkit-transition: background 0.3s ease;
+        -moz-transition: background 0.3s ease;
+        -ms-transition: background 0.3s ease;
+        -o-transition: background 0.3s ease;
+    }
+
+    &__text {
+        margin-top: 10px;
+        font-size: 1.5rem;
+        line-height: 1.6rem;
+        color: #838383;
+        text-align: justify;
+    }
+
+    &__link {
+        color: $teal-green-light !important;
+        cursor: pointer;
+    }
+}
+
+.input-group {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.input-group input {
+    font-size: 1.5rem;
+    width: 100%;
+    padding: 12px 40px 12px 40px;
+    border-radius: 30px;
+    border: none;
+    outline: none;
+    background: $teal-green-dark;
+    color: #000000;
+}
+
+.input-group .icon {
+    font-size: 1.5rem;
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #000000;
+}
+
+.input-group .eye {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #fff;
+}
+
+.checkbox-group {
+    display: flex;
+    font-size: 12px;
+    gap: 5px;
+}
+
+.checkbox-group input {
+    margin-right: 5px;
+}
+
+.checkbox-group a {
+    color: #7676ee;
+    text-decoration: none;
+}
+
+p {
+    margin-top: 15px;
+    font-size: 13px;
+}
+
+a {
+    color: #ffffff;
+    text-decoration: none;
+}
+
+/*
+
+Glow text animation using box shadow effects as a study of what can be accomplished with just css
+
+This is a component of a future homepage for an interactive narrative website which will be only use html and css. This was started to test my limits with css and to show that accessible and efficient design can just be limited to html and css.
+
+*/
+
+/*
+  Title font, use <b> for bold weight, <i> for book weight, and unadorned <h1> for medium weight.
+  */
+h1 {
+    font-family: Audiowide, sans-serif;
+    font-weight: 500;
+    font-style: normal;
+    color: $teal-green;
+    font-size: 6.667vw;
+    font-feature-settings: "ss01" 1, "ss03" 1, "kern" 1, "dlig" 1;
+}
+
+h2 {
+    font-family: Audiowide, sans-serif;
+    font-weight: 300;
+    font-style: normal;
+    font-size: 2.667vw;
+    color: $teal-green;
+}
+
+.neon-text {
+    animation: flicker 6s linear infinite;
+}
+
+/*
+  BRIEF:
+  
+  This animation transitions between 3 stages at differing speeds to mimic organic flickering in old neon signs.
+  
+  1 is the standard brightness which will be the basis state
+  
+  2 is the overright state used for sudden flashes
+  
+  3 is the off stage, where only a faint glow inside the text remains.
+  
+  
+  2:
+    color: white;
+    text-shadow:
+      0 0 0.3vw #fff,
+      0 0 0.521vw #fff,
+      0 0 1.094vw #fff,
+      0 0 2.188vw $teal-green,
+      0 0 4.271vw $teal-green,
+      0 0 4.792vw $teal-green,
+      0 0 5.313vw $teal-green,
+      0 0 7.865vw $teal-green;
+  1:
+      opacity: 75%;
+      color: white;
+      text-shadow:
+        0 0 1vw $teal-green,
+        0 0 2vw $teal-green,
+        0 0 2.5vw $teal-green,
+        0 0 3vw $teal-green,
+        0 0 4vw $teal-green;
+  3:
+      opacity: 25%;
+      color: transparent;
+      text-shadow:
+      0 0 0.3vw $teal-green,
+      0 0 0.521vw $teal-green;
+  
+  the stages of animation were figured out manually by studying stock footage of a neon sign flickering.
+  */
+
+@keyframes flicker {
+    0% {
+        /*3*/
+        opacity: 25%;
+        color: transparent;
+        text-shadow: 0 0 0.3vw $teal-green, 0 0 0.521vw $teal-green;
+    }
+    3.3% {
+        /*3*/
+        opacity: 25%;
+        color: transparent;
+        text-shadow: 0 0 0.3vw $teal-green, 0 0 0.521vw $teal-green;
+    }
+    3.67% {
+        /*2*/
+        color: white;
+        text-shadow: 0 0 0.3vw #fff, 0 0 0.521vw #fff, 0 0 1.094vw #fff,
+            0 0 2.188vw $teal-green, 0 0 4.271vw $teal-green, 0 0 4.792vw $teal-green,
+            0 0 5.313vw $teal-green, 0 0 7.865vw $teal-green;
+    }
+    10% {
+        /*1*/
+        opacity: 75%;
+        color: white;
+        text-shadow: 0 0 1vw $teal-green, 0 0 2vw $teal-green, 0 0 2.5vw $teal-green,
+            0 0 3vw $teal-green, 0 0 4vw $teal-green;
+    }
+    36.7% {
+        /*1*/
+        opacity: 75%;
+        color: white;
+        text-shadow: 0 0 1vw $teal-green, 0 0 2vw $teal-green, 0 0 2.5vw $teal-green,
+            0 0 3vw $teal-green, 0 0 4vw $teal-green;
+    }
+    37.3% {
+        /*3*/
+        opacity: 25%;
+        color: transparent;
+        text-shadow: 0 0 0.3vw $teal-green, 0 0 0.521vw $teal-green;
+    }
+    38% {
+        /*1*/
+        opacity: 75%;
+        color: white;
+        text-shadow: 0 0 1vw $teal-green, 0 0 2vw $teal-green, 0 0 2.5vw $teal-green,
+            0 0 3vw $teal-green, 0 0 4vw $teal-green;
+    }
+    40.67% {
+        /*3*/
+        opacity: 25%;
+        color: transparent;
+        text-shadow: 0 0 0.3vw $teal-green, 0 0 0.521vw $teal-green;
+    }
+    41.33% {
+        /*1*/
+        opacity: 75%;
+        color: white;
+        text-shadow: 0 0 1vw $teal-green, 0 0 2vw $teal-green, 0 0 2.5vw $teal-green,
+            0 0 3vw $teal-green, 0 0 4vw $teal-green;
+    }
+    60% {
+        /*2*/
+        color: white;
+        text-shadow: 0 0 0.3vw #fff, 0 0 0.521vw #fff, 0 0 1.094vw #fff,
+            0 0 2.188vw $teal-green, 0 0 4.271vw $teal-green, 0 0 4.792vw $teal-green,
+            0 0 5.313vw $teal-green, 0 0 7.865vw $teal-green;
+    }
+    80% {
+        /*1*/
+        opacity: 75%;
+        color: white;
+        text-shadow: 0 0 1vw $teal-green, 0 0 2vw $teal-green, 0 0 2.5vw $teal-green,
+            0 0 3vw $teal-green, 0 0 4vw $teal-green;
+    }
+    93.3% {
+        /*2*/
+        color: white;
+        text-shadow: 0 0 0.3vw #fff, 0 0 0.521vw #fff, 0 0 1.094vw #fff,
+            0 0 2.188vw $teal-green, 0 0 4.271vw $teal-green, 0 0 4.792vw $teal-green,
+            0 0 5.313vw $teal-green, 0 0 7.865vw $teal-green;
+    }
+    93.5% {
+        /*1*/
+        opacity: 75%;
+        color: white;
+        text-shadow: 0 0 1vw $teal-green, 0 0 2vw $teal-green, 0 0 2.5vw $teal-green,
+            0 0 3vw $teal-green, 0 0 4vw $teal-green;
+    }
+    98% {
+        /*3*/
+        opacity: 25%;
+        color: transparent;
+        text-shadow: 0 0 0.3vw $teal-green, 0 0 0.521vw $teal-green;
+    }
+    100% {
+        /*1*/
+        opacity: 75%;
+        color: white;
+        text-shadow: 0 0 1vw $teal-green, 0 0 2vw $teal-green, 0 0 2.5vw $teal-green,
+            0 0 3vw $teal-green, 0 0 4vw $teal-green;
+    }
+}

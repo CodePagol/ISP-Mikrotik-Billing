@@ -1,0 +1,6 @@
+@extends('errors.layout')
+@section('code', '403')
+@section('title', 'Forbidden')
+@section('icon', '🚫')
+@section('heading', 'Access Forbidden')
+@section('message', 'You don\'t have permission to access this page. If you think this is a mistake, please contact support.')

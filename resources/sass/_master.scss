@@ -1,0 +1,322 @@
+// =============================================================================
+// _master.scss — Consolidated Custom Styles (NO DUPLICATES)
+// Merges: app.scss custom parts + codepagol.scss
+// =============================================================================
+
+@import 'breakpoints';
+
+// -----------------------------------------------------------------------------
+// 1. DESIGN TOKENS / VARIABLES
+// -----------------------------------------------------------------------------
+$body-bg: #f8fafc;
+$font-family-sans-serif: 'Nunito', sans-serif;
+$font-size-base: 0.9rem;
+$line-height-base: 1.6;
+
+// Brand Colors
+$teal-green: #06ad73;
+$teal-green-light: #1dae7cc3;
+$teal-green-dark: #8fe7c87c;
+$text-opacity: 1;
+
+// NOTE: Custom width pixel/percentage/fraction utility classes are now handled dynamically by Tailwind CSS (e.g., cp-w-[100px], cp-w-1/2) to prevent compiled CSS bloat.
+// -----------------------------------------------------------------------------
+// 4. GLOBAL HELPERS
+// -----------------------------------------------------------------------------
+[x-cloak] {
+    display: none !important;
+}
+
+.fl-wrapper {
+    z-index: 9999 !important;
+}
+
+// -----------------------------------------------------------------------------
+// 5. ANIMATIONS / KEYFRAMES
+// -----------------------------------------------------------------------------
+@keyframes fadeSlideIn {
+    0%   { opacity: 0; transform: translateY(10px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes zoomIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes tada {
+    0%                 { transform: scaleZ(1); }
+    10%, 20%           { transform: scale3d(.95, .95, .95) rotate3d(0, 0, 1, -10deg); }
+    30%, 50%, 70%, 90% { transform: scaleZ(1) rotate3d(0, 0, 1, 10deg); }
+    40%, 60%, 80%      { transform: rotate3d(0, 0, 1, -10deg); }
+    100%               { transform: scaleZ(1); }
+}
+
+.animated-feedin {
+    animation: fadeSlideIn 0.3s ease-out;
+    -webkit-animation: fadeSlideIn 0.3s ease-out;
+}
+
+.zoom-in {
+    animation: zoomIn 0.2s ease-out;
+    -webkit-animation: zoomIn 0.2s ease-out;
+}
+
+.animate-ring {
+    animation: tada 1.5s ease infinite;
+}
+
+// Bottom navigation bar
+.navigation {
+    width: 100%;
+    height: 50px;
+    background: #d9f8eb;
+    border-radius: 10px;
+
+    ul li {
+        width: 20%;
+
+        a {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            width: 100%;
+
+            .icon {
+                line-height: 1.5em;
+                font-size: 1.5em;
+                text-align: center;
+                transition: 0.5s;
+                color: #029c5c;
+            }
+
+            .text {
+                color: #029c5c;
+                transition: 0.5s;
+                position: absolute;
+                font-weight: 400;
+                font-size: 0.75em;
+                letter-spacing: 0.05em;
+                opacity: 0;
+                transform: translateY(20px);
+            }
+        }
+    }
+
+    ul .active {
+        .icon { transform: translateY(-25px); }
+        .text { opacity: 1; transform: translateY(10px); }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// 7. TOGGLE CHECKBOX
+// -----------------------------------------------------------------------------
+.checkbox-container {
+    display: inline-block;
+    position: relative;
+}
+
+.toggle-checkbox { display: none; }
+
+.toggle-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 130px;
+    padding: 5px;
+    background-color: #f8f9fa;
+    border-radius: 50px;
+    cursor: pointer;
+    border: 2px solid #ccc;
+    transition: background-color 0.3s ease;
+    position: relative;
+    font-family: Arial, sans-serif;
+}
+
+.connected-text, .disconnected-text {
+    font-size: 14px;
+    font-weight: bold;
+    transition: opacity 0.3s ease;
+}
+
+.disconnected-text {
+    opacity: 0;
+    position: absolute;
+    left: 30px;
+}
+
+.toggle-switch {
+    position: absolute;
+    top: 3px;
+    left: 4px;
+    width: 25px;
+    height: 25px;
+    background-color: #ccc;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.toggle-checkbox:checked + .toggle-label {
+    background-color: #4caf50;
+    border-color: #4caf50;
+
+    .connected-text    { opacity: 1; }
+    .disconnected-text { opacity: 0; }
+    .toggle-switch     { left: 100px; background-color: #fff; }
+}
+
+.toggle-checkbox + .toggle-label {
+    .connected-text    { opacity: 0; }
+    .disconnected-text { opacity: 1; }
+    .toggle-switch     { left: 4px; background-color: #ccc; }
+}
+
+// -----------------------------------------------------------------------------
+// 8. FIELDSET / LEGEND
+// -----------------------------------------------------------------------------
+fieldset.scheduler-border {
+    border: 1px groove #009e5c !important;
+    padding: 0 1.4em 1.4em 1.4em !important;
+    margin: 0 0 1.5em 0 !important;
+    box-shadow: 0px 0px 0px 0px #60cc9f;
+}
+
+fieldset {
+    border: 1px solid #cef2ef !important;
+    margin: 0;
+    min-width: 0;
+    position: relative;
+    border-radius: 4px;
+    padding-left: 10px !important;
+}
+
+legend.scheduler-border {
+    font-size: 1.2em !important;
+    font-weight: bold !important;
+    text-align: left !important;
+    width: auto;
+    padding: 0 10px;
+    border: 1px solid #cef2ef;
+    border-radius: 15px;
+    background: #cef2ef;
+    color: #009e5c;
+}
+
+legend {
+    font-size: 16px;
+    font-weight: bold;
+    width: 35%;
+    border: 1px solid #cef2ef;
+    border-radius: 4px;
+    color: #009e5c !important;
+    background-color: #cef2ef;
+}
+
+// -----------------------------------------------------------------------------
+// 9. INVOICE STYLES
+// -----------------------------------------------------------------------------
+.invoice {
+    background: #fff;
+    border-radius: 10px;
+    padding: 50px;
+}
+
+.invoice_info_list_bg {
+    position: absolute;
+    height: 100%;
+    width: calc(100% + 100px);
+    top: 0;
+    left: 0;
+    border-radius: 20px 0 0 0px;
+    transform: skewX(-35deg);
+    -webkit-transform: skewX(-35deg);
+}
+
+.accent_bg_10 {
+    background-color: #edfdf6 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+.invoice.style1 .invoice_info_list { display: flex; }
+
+.invoice.style1.type1 .card_note,
+.invoice.style1.type1 .invoice_info_list {
+    position: relative;
+    z-index: 1;
+}
+
+.invoice.style1.type3 {
+    position: relative;
+    overflow: hidden;
+    border-radius: 0;
+
+    .invoice_info_list { position: relative; padding: 10px 0 10px 40px; }
+    .shape_1           { position: absolute; top: -1px; left: 0; }
+    .shape_2           { position: absolute; bottom: 0; left: 0; display: flex; }
+    .logo img          { max-height: 60px; }
+    .invoice_head.mb20 { margin-bottom: 65px; }
+}
+
+// -----------------------------------------------------------------------------
+// 10. PROSE STYLES
+// -----------------------------------------------------------------------------
+.prose {
+    color: var(--cp-prose-body, #374151);
+    max-width: 65ch;
+
+    a      { color: inherit; text-decoration: underline; font-weight: 500; }
+    strong { color: inherit; font-weight: 600; }
+    ol     { list-style-type: decimal; padding-left: 1.625em; }
+    ul     { list-style-type: disc; padding-left: 1.625em; }
+    li     { margin-top: 0.5em; margin-bottom: 0.5em; }
+
+    blockquote {
+        font-weight: 500;
+        font-style: italic;
+        border-left: 0.25rem solid #e5e7eb;
+        padding-left: 1em;
+        margin: 1.6em 0;
+    }
+
+    h1, h2, h3, h4 {
+        color: inherit;
+        font-weight: bold;
+        margin-top: 2em;
+        margin-bottom: 1em;
+    }
+}
+
+// -----------------------------------------------------------------------------
+// 11. BOX COMPONENT (Auth/Login)
+// -----------------------------------------------------------------------------
+.box {
+    align-items: center;
+    background-color: white;
+    border: #75a8f5c8 1px solid;
+    box-shadow: $teal-green 0px 0px 15px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    width: 90%;
+    height: auto;
+    overflow: hidden;
+
+    @include breakpoint(md, min) {
+        flex-direction: row;
+    }
+}
+
+// Neon flicker animation
+@keyframes flicker {
+    0%, 3.3%, 37.3%, 40.67%, 98% { opacity: 25%; color: transparent; text-shadow: 0 0 0.3vw $teal-green; }
+    3.67%, 60%, 93.3%            { color: white; text-shadow: 0 0 0.3vw #fff; }
+    10%, 100%                    { opacity: 75%; color: white; text-shadow: 0 0 1vw $teal-green; }
+}
+
+.neon-text {
+    animation: flicker 6s linear infinite;
+}
