@@ -12,40 +12,7 @@
                     <span class="text-success fw-bold"><i class="bi bi-search me-2"></i>{{ __('Search Customer') }}</span>
                 </x-slot>
                 <x-slot name="aside">
-                    <div class="position-relative">
-                        <input
-                            type="search"
-                            name="customer_list"
-                            class="form-control form-control-sm w-100 shadow-sm"
-                            placeholder="{{ siteUrlSettings('customer_id_prefix') ?: 'FCNET' }}-XXX, name, mobile"
-                            wire:model.live="customer_list"
-                            autocomplete="off"
-                            tabindex="1"
-                            wire:keydown.arrow-down="incrementHighlight"
-                            wire:keydown.arrow-up="decrementHighlight"
-                            wire:keydown.enter="selectHighlightedCustomer"
-                            id="customer_list"
-                            style="border-radius: 8px;"
-                            autofocus
-                        >
-                        @if (!empty($customers))
-                            <ul class="scrollbar-overlay overflow-auto list-group position-absolute w-100 shadow-lg mt-1" style="max-height:20rem; z-index: 1050; border-radius: 8px;">
-                                @foreach ($customers as $index => $customer)
-                                    <li
-                                        wire:click="selectCustomer('{{ encrypt($customer->customer_unique_id) }}')"
-                                        class="list-group-item list-group-item-action py-2 {{ $index === $highlightedIndex ? 'active bg-success border-success text-white' : '' }}"
-                                        style="cursor: pointer; font-size: 0.85rem;"
-                                        wire:key="customer-{{ $customer->id }}"
-                                    >
-                                        <div class="fw-bold">{{ $customer->customer_unique_id }}</div>
-                                        <div class="text-muted small {{ $index === $highlightedIndex ? 'text-white-50' : '' }}">
-                                            {{ $customer->customer_name }} | {{ $customer->mobile }}
-                                        </div>
-                                    </li>
-                                @endforeach
-                            </ul>
-                        @endif
-                    </div>
+                    @include('livewire.partials.customer-search')
                 </x-slot>
             </x-mikrotik.section-form>
         </div>

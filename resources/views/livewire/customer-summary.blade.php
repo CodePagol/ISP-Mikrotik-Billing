@@ -4,7 +4,7 @@
             <i class="bi bi-file-earmark-bar-graph me-2 text-success"></i>{{ __('Customer Summary') }}
         </h2>
     </x-slot>
-    
+
     <div class="row g-3 d-flex justify-content-center mb-3">
         <!-- Search Panel -->
         <div class="col-lg-4 col-md-5 col-sm-12">
@@ -13,40 +13,7 @@
                     <span class="text-success fw-bold"><i class="bi bi-search me-2"></i>{{ __('Search Customer') }}</span>
                 </x-slot>
                 <x-slot name="aside">
-                    <div class="position-relative">
-                        <input
-                            type="search"
-                            name="customer_list"
-                            class="form-control form-control-sm w-100 shadow-sm"
-                            placeholder="{{ siteUrlSettings('customer_id_prefix') ?: 'FCNET' }}-XXX, name, mobile"
-                            wire:model.live="customer_list"
-                            autocomplete="off"
-                            tabindex="1"
-                            wire:keydown.arrow-down="incrementHighlight"
-                            wire:keydown.arrow-up="decrementHighlight"
-                            wire:keydown.enter="selectHighlightedCustomer"
-                            id="customer_list"
-                            style="border-radius: 8px;"
-                            autofocus
-                        >
-                        @if (!empty($customers))
-                            <ul class="scrollbar-overlay overflow-auto list-group position-absolute w-100 shadow-lg mt-1" style="max-height:20rem; z-index: 1050; border-radius: 8px;">
-                                @foreach ($customers as $index => $customer)
-                                    <li
-                                        wire:click="selectCustomer('{{ encrypt($customer->customer_unique_id) }}')"
-                                        class="list-group-item list-group-item-action py-2 {{ $index === $highlightedIndex ? 'active bg-success border-success text-white' : '' }}"
-                                        style="cursor: pointer; font-size: 0.85rem;"
-                                        wire:key="customer-{{ $customer->id }}"
-                                    >
-                                        <div class="fw-bold">{{ $customer->customer_unique_id }}</div>
-                                        <div class="text-muted small {{ $index === $highlightedIndex ? 'text-white-50' : '' }}">
-                                            {{ $customer->customer_name }} | {{ $customer->mobile }}
-                                        </div>
-                                    </li>
-                                @endforeach
-                            </ul>
-                        @endif
-                    </div>
+                    @include('livewire.partials.customer-search')
                 </x-slot>
             </x-mikrotik.section-form>
         </div>
@@ -56,7 +23,8 @@
             @if (!empty($info_data))
                 <x-mikrotik.section-form>
                     <x-slot name="title">
-                        <span class="text-success fw-bold"><i class="bi bi-person-badge me-2"></i>{{ __('Customer Information') }}</span>
+                        <span class="text-success fw-bold"><i
+                                class="bi bi-person-badge me-2"></i>{{ __('Customer Information') }}</span>
                     </x-slot>
                     <x-slot name="aside">
                         <div class="table-responsive">
@@ -71,7 +39,8 @@
                                     <tr>
                                         <td class="text-muted py-2">{{ __('Billing Type') }}</td>
                                         <td class="py-2">
-                                            <span class="badge bg-light text-dark border px-2 py-1" style="font-size: 0.75rem;">{{ __(ucfirst($info_data->billing->billing_type)) }}</span>
+                                            <span class="badge bg-light text-dark border px-2 py-1"
+                                                style="font-size: 0.75rem;">{{ __(ucfirst($info_data->billing->billing_type)) }}</span>
                                         </td>
                                         <td class="text-muted py-2">{{ __('PPPoE Username') }}</td>
                                         <td class="py-2">{{ $info_data->pppUser->username ?? 'N/A' }}</td>
@@ -82,7 +51,7 @@
                                             @foreach ($info_data->customerAddress as $address)
                                                 {{ $address->input_type_dropdown }},
                                                 {{ $address->input_type_test }}
-                                                @if($address->input_type_textarea)
+                                                @if ($address->input_type_textarea)
                                                     | {{ $address->input_type_textarea }}
                                                 @endif
                                             @endforeach
@@ -91,7 +60,7 @@
                                     <tr>
                                         <td class="text-muted py-2">{{ __('Status') }}</td>
                                         @php
-                                            $badge = match($info_data->status) {
+                                            $badge = match ($info_data->status) {
                                                 'active' => 'bg-success',
                                                 'pending' => 'bg-warning text-dark',
                                                 'free' => 'bg-info text-dark',
@@ -99,7 +68,8 @@
                                             };
                                         @endphp
                                         <td class="py-2">
-                                            <span class="badge rounded-pill {{ $badge }} px-2.5 py-1" style="font-size: 0.75rem;">{{ __(ucfirst($info_data->status)) }}</span>
+                                            <span class="badge rounded-pill {{ $badge }} px-2.5 py-1"
+                                                style="font-size: 0.75rem;">{{ __(ucfirst($info_data->status)) }}</span>
                                         </td>
                                         <td class="text-muted py-2">{{ __('Expire Date') }}</td>
                                         <td class="text-dark py-2">
@@ -122,11 +92,14 @@
             <div class="col-12">
                 <x-mikrotik.section-form>
                     <x-slot name="title">
-                        <span class="text-success fw-bold"><i class="bi bi-credit-card-2-back me-2"></i>{{ __('Customer Payment Ledger') }}</span>
+                        <span class="text-success fw-bold"><i
+                                class="bi bi-credit-card-2-back me-2"></i>{{ __('Customer Payment Ledger') }}</span>
                     </x-slot>
                     <x-slot name="aside">
                         <div class="table-responsive">
-                            <table id="payment_summary" class="data-table table table-sm table-hover align-middle display table-bordered scrollbar" style="font-size: 0.85rem;">
+                            <table id="payment_summary"
+                                class="data-table table table-sm table-hover align-middle display table-bordered scrollbar"
+                                style="font-size: 0.85rem;">
                                 <thead class="table-success text-success text-center">
                                     <tr>
                                         <th class="py-2">{{ __('Date') }}</th>
@@ -144,14 +117,29 @@
                                 <tbody class="text-center">
                                     @foreach ($info_data->paymentSummary->sortByDesc('summary_date') as $paymentSummary)
                                         @php
-                                            $collectionStartDate = \Carbon\Carbon::parse($paymentSummary->summary_date)->startOfMonth();
-                                            $collectionEndDate = \Carbon\Carbon::parse($paymentSummary->summary_date)->endOfMonth();
-                                        
-                                            $collections = $info_data->collectionSummary->whereBetween('collection_date', [$collectionStartDate, $collectionEndDate])->values()->toArray(); 
-                                            $bill_amount = ($paymentSummary->monthly_rent + $paymentSummary->additional_charge + $paymentSummary->previous_due) - ($paymentSummary->discount + $paymentSummary->advance );
+                                            $collectionStartDate = \Carbon\Carbon::parse(
+                                                $paymentSummary->summary_date,
+                                            )->startOfMonth();
+                                            $collectionEndDate = \Carbon\Carbon::parse(
+                                                $paymentSummary->summary_date,
+                                            )->endOfMonth();
+
+                                            $collections = $info_data->collectionSummary
+                                                ->whereBetween('collection_date', [
+                                                    $collectionStartDate,
+                                                    $collectionEndDate,
+                                                ])
+                                                ->values()
+                                                ->toArray();
+                                            $bill_amount =
+                                                $paymentSummary->monthly_rent +
+                                                $paymentSummary->additional_charge +
+                                                $paymentSummary->previous_due -
+                                                ($paymentSummary->discount + $paymentSummary->advance);
                                         @endphp
                                         <tr class="table-light fw-bold text-dark">
-                                            <td>{{ \Carbon\Carbon::parse($paymentSummary->summary_date)->format('d-M-Y') }}</td>
+                                            <td>{{ \Carbon\Carbon::parse($paymentSummary->summary_date)->format('d-M-Y') }}
+                                            </td>
                                             <td>{{ $paymentSummary->monthly_rent }}</td>
                                             <td>{{ $paymentSummary->discount }}</td>
                                             <td>{{ $paymentSummary->advance }}</td>
@@ -162,11 +150,13 @@
                                             <td>-</td>
                                             <td>-</td>
                                         </tr>
-                                        
+
                                         @if ($collections)
                                             @foreach ($collections as $collection)
                                                 <tr class="table-success-subtle">
-                                                    <td class="text-muted"><i class="bi bi-arrow-return-right me-1 text-success"></i>{{ date('d-M-Y', strtotime($collection['collection_date'])) }}</td>
+                                                    <td class="text-muted"><i
+                                                            class="bi bi-arrow-return-right me-1 text-success"></i>{{ date('d-M-Y', strtotime($collection['collection_date'])) }}
+                                                    </td>
                                                     <td></td>
                                                     <td></td>
                                                     <td></td>
@@ -179,7 +169,8 @@
                                                     <td class="text-success fw-semibold">
                                                         {{ $collection['collection_amount'] }}
                                                     </td>
-                                                    <td class="text-danger fw-semibold">{{ $bill_amount - $collection['collection_amount'] }}</td>
+                                                    <td class="text-danger fw-semibold">
+                                                        {{ $bill_amount - $collection['collection_amount'] }}</td>
                                                 </tr>
                                             @endforeach
                                         @else
@@ -195,23 +186,25 @@
                                                 <td class="text-muted">0</td>
                                                 <td class="text-danger fw-semibold">{{ $bill_amount }}</td>
                                             </tr>
-                                        @endif                        
+                                        @endif
                                     @endforeach
                                 </tbody>
                             </table>
                         </div>
                     </x-slot>
-                </x-mikrotik.section-form>  
+                </x-mikrotik.section-form>
             </div>
         </div>
-    @endif          
+    @endif
 </div>
 
 @push('styles')
     <style>
-        #payment_summary th, #payment_summary td {
+        #payment_summary th,
+        #payment_summary td {
             padding: 0.4rem 0.5rem;
         }
+
         .table-success-subtle {
             background-color: rgba(40, 167, 69, 0.04) !important;
         }
@@ -219,34 +212,34 @@
 @endpush
 
 @push('scripts')
-<script>
-    function initializeDataTable() {
-        if ($('#payment_summary').length === 0) {
-            return;
-        }
-        setTimeout(() => {
-            if ($.fn.DataTable.isDataTable('#payment_summary')) {
-                $('#payment_summary').DataTable().destroy();
+    <script>
+        function initializeDataTable() {
+            if ($('#payment_summary').length === 0) {
+                return;
             }
-            $('#payment_summary').DataTable({
-                searching: false,
-                paging: false,
-                ordering: false,
-                info: false,
-                dom: 'Bfrtip',
-                buttons: [
-                    'excel',
-                    'print'
-                ]
-            });
-        }, 200);
-    }
+            setTimeout(() => {
+                if ($.fn.DataTable.isDataTable('#payment_summary')) {
+                    $('#payment_summary').DataTable().destroy();
+                }
+                $('#payment_summary').DataTable({
+                    searching: false,
+                    paging: false,
+                    ordering: false,
+                    info: false,
+                    dom: 'Bfrtip',
+                    buttons: [
+                        'excel',
+                        'print'
+                    ]
+                });
+            }, 200);
+        }
 
-    document.addEventListener('DOMContentLoaded', initializeDataTable);
-    document.addEventListener('livewire:navigated', initializeDataTable);
+        document.addEventListener('DOMContentLoaded', initializeDataTable);
+        document.addEventListener('livewire:navigated', initializeDataTable);
 
-    Livewire.on('dataTable', () => {
-        initializeDataTable();
-    });
-</script>
+        Livewire.on('dataTable', () => {
+            initializeDataTable();
+        });
+    </script>
 @endpush
