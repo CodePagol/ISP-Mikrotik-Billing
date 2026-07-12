@@ -1,0 +1,31 @@
+// =============================================================================
+// _theme.scss — Theme SCSS Entry Point
+// Auto-generated from theme.min.css by css-to-scss.cjs
+//
+// Import this file instead of theme.min.css:
+//   In app.scss: @import 'theme/theme';
+//
+// Structure:
+//   _variables.scss  → :root CSS custom properties + $scss-var aliases
+//   _dark.scss       → Dark mode variable overrides
+//   _components.scss → Bootstrap component overrides + custom components
+//   _utilities.scss  → Theme utility classes
+//   _layout.scss     → Responsive rules, base elements, misc
+// =============================================================================
+
+@charset "UTF-8";
+
+// 1. CSS custom properties (runtime variables — can change via JS/data-bs-theme)
+@import 'variables';
+
+// 2. Dark mode overrides
+@import 'dark';
+
+// 3. Component styles (cards, buttons, navbar, etc.)
+@import 'components';
+
+// 4. Utility classes
+@import 'utilities';
+
+// 5. Responsive & base element styles
+@import 'layout';

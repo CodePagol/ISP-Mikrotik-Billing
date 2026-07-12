@@ -1,0 +1,43 @@
+// =============================================================================
+// app.scss — Main SCSS Entry Point
+// =============================================================================
+// Import hierarchy:
+//   1. _variables      → Bootstrap SCSS variable overrides
+//   2. bootstrap       → Full Bootstrap 5 framework
+//   3. Third-party CSS → Icons, DataTables
+//   4. theme/theme     → Full CodePagol theme (converted from theme.min.css)
+//   5. _overrides      → CSS rules where theme != Bootstrap default
+//   6. _pmis           → PMIS fieldset/legend styles
+//   7. _filament       → Filament panel custom styles
+//   8. _app-prose      → Prose (Typography plugin) + app custom styles
+//   9. _master         → All consolidated custom project styles
+// =============================================================================
+
+// 1. Bootstrap variable overrides
+@import 'variables';
+
+// 2. Bootstrap core
+@import 'bootstrap/scss/bootstrap';
+
+// 3. Third-party
+@import 'intl-tel-input/dist/css/intlTelInput.css';
+@import 'bootstrap-icons/font/bootstrap-icons.css';
+@import 'datatables.net-bs5/css/dataTables.bootstrap5.min.css';
+@import 'datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css';
+@import 'datatables.net-select-bs5/css/select.bootstrap5.css';
+
+// 4. CodePagol theme (converted from theme.min.css)
+@import 'theme/theme';
+
+// 5. Bootstrap overrides (only rules where theme value != Bootstrap default)
+@import 'overrides';
+
+// 7. Filament panel custom styles
+@import 'filament';
+
+// 8. Prose (Tailwind Typography) + app custom styles
+@import 'app-prose';
+
+// 9. Consolidated custom project styles
+@import 'master';
+

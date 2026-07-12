@@ -1,0 +1,14 @@
+/* =============================================================================
+   app.css — Tailwind CSS Entry Point
+   =============================================================================
+   This file is processed by PostCSS (Tailwind + autoprefixer).
+   All custom CSS has been moved to resources/sass/ partials.
+   ============================================================================= */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.invalid-feedback {
+   display: inline !important;
+}

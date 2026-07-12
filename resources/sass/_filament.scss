@@ -1,0 +1,132 @@
+// =============================================================================
+// _filament.scss — Filament Panel Custom Sidebar & UI Styles
+//
+// Note: This file uses Tailwind @apply directives.
+//       Must be processed by PostCSS (Tailwind) as well as Sass.
+//       Vite handles this automatically when the file is an entry point.
+// =============================================================================
+
+// ─── Sidebar Header ───────────────────────────────────────────────────────────
+.filament-portal-sidebar-header {
+    @apply cp-flex cp-flex-col cp-gap-4 cp-p-6;
+    border-bottom-color: var(--panel-border-color);
+}
+
+.filament-portal-sidebar-header-title {
+    @apply cp-flex cp-items-center cp-gap-4;
+}
+
+// ─── Logo ─────────────────────────────────────────────────────────────────────
+.filament-portal-logo {
+    @apply cp-flex cp-items-center cp-justify-center cp-w-10 cp-h-10 cp-rounded-lg;
+    background-color: var(--primary);
+    border-radius: 10px !important;
+
+    img {
+        width: 60%;
+        height: 60%;
+    }
+}
+
+// ─── Brand ───────────────────────────────────────────────────────────────────
+.filament-portal-brand {
+    @apply cp-text-xl cp-font-bold cp-text-gray-900 dark:cp-text-white;
+    font-family: var(--font-family);
+}
+
+// ─── Sidebar Group ────────────────────────────────────────────────────────────
+.filament-portal-sidebar-group {
+    @apply cp-flex cp-flex-col cp-gap-2;
+}
+
+.filament-portal-sidebar-group-label {
+    @apply cp-text-sm cp-font-bold cp-text-gray-600 dark:cp-text-gray-300;
+    padding-left: 12px;
+    padding-right: 12px;
+    letter-spacing: 0.5px;
+}
+
+// ─── Sidebar Item ─────────────────────────────────────────────────────────────
+.filament-portal-sidebar-item {
+    @apply cp-flex cp-items-center cp-justify-start cp-gap-3 cp-px-3 cp-py-2 cp-rounded-lg cp-transition-colors cp-duration-200;
+    color: var(--gray-600);
+    text-decoration: none;
+
+    svg {
+        width: 20px;
+        height: 20px;
+        stroke: currentColor;
+        stroke-width: 2;
+    }
+
+    &:hover {
+        background-color: rgba(var(--primary-rgb), 0.1);
+        color: var(--primary);
+    }
+
+    &.active {
+        background-color: var(--primary);
+        color: white;
+        font-weight: 500;
+
+        &:hover {
+            background-color: var(--primary-hover);
+            color: white;
+        }
+    }
+}
+
+// ─── Footer ───────────────────────────────────────────────────────────────────
+.filament-portal-footer {
+    padding-top: 20px !important;
+    margin-top: 20px !important;
+    border-top: 1px solid var(--panel-border-color);
+}
+
+.filament-portal-footer-button {
+    @apply cp-flex cp-items-center cp-gap-2 cp-px-3 cp-py-2 cp-rounded-lg cp-text-sm cp-transition-colors cp-duration-200;
+    color: var(--gray-600);
+    text-decoration: none;
+
+    svg {
+        width: 18px;
+        height: 18px;
+        stroke: currentColor;
+        stroke-width: 2;
+    }
+
+    &:hover {
+        background-color: rgba(var(--primary-rgb), 0.1);
+        color: var(--primary);
+    }
+}
+
+// ─── Responsive ───────────────────────────────────────────────────────────────
+@media (max-width: 1024px) {
+    .filament-portal-sidebar-header {
+        padding: 16px !important;
+    }
+
+    .filament-portal-logo {
+        width: 36px;
+        height: 36px;
+    }
+
+    .filament-portal-brand {
+        font-size: 18px;
+    }
+
+    .filament-portal-sidebar-item {
+        padding: 10px 12px !important;
+
+        svg {
+            width: 18px;
+            height: 18px;
+        }
+    }
+}
+
+// ─── Alpine.js cloak ─────────────────────────────────────────────────────────
+[x-cloak] {
+    display: none !important;
+}

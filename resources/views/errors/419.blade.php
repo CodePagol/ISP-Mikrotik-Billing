@@ -1,0 +1,6 @@
+@extends('errors.layout')
+@section('code', '419')
+@section('title', 'Session Expired')
+@section('icon', '⏰')
+@section('heading', 'Session Expired')
+@section('message', 'Your session has expired or the page token is invalid. Please go back and try your action again.')

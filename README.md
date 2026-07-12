@@ -8,6 +8,8 @@
 ![MikroTik API](https://img.shields.io/badge/MikroTik-RouterOS%20API-000000?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
+### Sponsored by [Friends Communications Limited](https://fcnetwork24.com)
+
 A premium, modern Internet Service Provider (ISP) Billing & MikroTik RouterOS API management platform built on Laravel, Livewire, and Filament. It allows network administrators and resellers to seamlessly manage subscribers, PPPoE connections, hotspot vouchers, automated payment reconciliations, and commissions from a unified interface.
 
 [Key Features](#key-features) • [Architecture](#system-architecture) • [Getting Started](#getting-started) • [Payment Webhooks](#webhook--mfs-auto-activation-setup) • [Screenshots](#screenshots-preview) • [Tech Stack](#tech-stack) • [License](#license)
@@ -122,6 +124,25 @@ graph TD
 
 ---
 
+## Task Scheduling (Cron Job)
+
+To automate monthly billing generation, daily SMS alerts, user disabling, MikroTik logging, and background synchronization, configure a single cron entry on your server:
+
+```bash
+* * * * * cd /path-to-your-project && php artisan schedule:run >> /dev/null 2>&1
+```
+
+### Scheduled Tasks:
+- **Router Log Polling:** Runs every minute to pull log events from MikroTik.
+- **Monthly Billing:** Automatically runs on the last day of the month at `23:45` (Asia/Dhaka timezone).
+- **Billing SMS Notifications:** Sends out monthly bill SMS on the 1st of every month at `10:00`.
+- **Alert Creation:** Generates daily connection & payment alerts at `08:00`.
+- **User Disabling:** Automatically disables expired secrets/users daily at `08:30`.
+- **MikroTik Sync:** Daily background synchronization of all secrets and hotspot accounts.
+- **Log Pruning:** Cleans up router logs older than defined retention days daily at `04:00`.
+
+---
+
 ## Webhook & MFS Auto-Activation Setup
 
 The platform features automated activation through payment notifications.
@@ -203,14 +224,14 @@ This project is open-source software licensed under the [MIT License](file:///f:
 ## Developed & Maintained by
 
 **Md Jahangir Alam Rohan**
-- **WhatsApp Support:** [+8801751136819](https://wa.me/8801751136819) (Fastest Response)
+- **WhatsApp Support:** [+8801840451881](https://wa.me/8801840451881) (Fastest Response)
 - **E-mail:** [rohan9222@gmail.com](mailto:rohan9222@gmail.com)
 - **GitHub:** [@rohan9222](https://github.com/rohan9222)
 
 ## Support & Customization
 
 For full setup support, custom ISP modules integration, payment gateway configuration, or technical queries:
-- **WhatsApp:** [Chat on WhatsApp](https://wa.me/8801751136819)
+- **WhatsApp:** [Chat on WhatsApp](https://wa.me/8801840451881)
 - **E-mail:** [rohan9222@gmail.com](mailto:rohan9222@gmail.com)
 
 *Feel free to submit a pull request or open an issue on the repository to contribute to the project.*

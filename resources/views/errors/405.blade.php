@@ -1,0 +1,6 @@
+@extends('errors.layout')
+@section('code', '405')
+@section('title', 'Method Not Allowed')
+@section('icon', '⛔')
+@section('heading', 'Method Not Allowed')
+@section('message', 'The HTTP method used for this request is not supported on this URL.')
