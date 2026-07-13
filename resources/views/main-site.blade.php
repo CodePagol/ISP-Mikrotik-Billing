@@ -996,8 +996,7 @@
                                     class="bi bi-envelope me-2"></i>{{ siteUrlSettings('site_email') ?? 'support@example.com' }}
                             </p>
 
-                            <p class="text-muted small">
-                                {{ $siteData?->footer_copyright ?? __('All rights reserved © ') . date('Y') }}</p>
+
 
                             {{-- Social Links --}}
                             @php
@@ -1094,6 +1093,19 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+                <hr class="mt-4 mb-3 border-secondary opacity-25">
+                <div class="row align-items-center">
+                    <div class="col-md-6 text-md-start text-center mb-2 mb-md-0">
+                        <p class="text-muted small mb-0">
+                            © {{ siteUrlSettings('site_name') ?? config('app.name') }} {{ date('Y') }}. All Rights Reserved
+                        </p>
+                    </div>
+                    <div class="col-md-6 text-md-end text-center">
+                        <p class="text-muted small mb-0">
+                            Designed & Develoved by : <a href="https://codepagol.com" target="_blank" class="text-muted text-decoration-none fw-semibold">CodePagol</a>
+                        </p>
                     </div>
                 </div>
             </div>
