@@ -77,8 +77,8 @@ graph TD
 
 1. **Clone the Repository**
    ```bash
-   git clone https://github.com/rohan9222/isp-billing-mikrotik-api.git
-   cd isp-billing-mikrotik-api
+   git clone https://github.com/CodePagol/ISP-Mikrotik-Billing.git
+   cd ISP-Mikrotik-Billing
    ```
 
 2. **Install Composer Dependencies**
