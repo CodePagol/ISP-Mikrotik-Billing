@@ -217,7 +217,7 @@ The core libraries and packages keeping the platform running smoothly:
 
 ## License
 
-This project is open-source software licensed under the [MIT License](file:///f:/laragon/www/mikrotik-api/LICENSE).
+This project is open-source software licensed under the [AGPL-3.0 license](/LICENSE).
 
 ---
 
