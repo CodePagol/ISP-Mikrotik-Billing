@@ -7,7 +7,10 @@
         style="border-radius: 8px;" autofocus>
     @if (!empty($customers))
         <ul class="scrollbar-overlay overflow-auto list-group position-absolute w-100 shadow-lg mt-1"
-            style="max-height:20rem; z-index: 1050; border-radius: 8px;">
+            style="max-height:20rem; z-index: 1050; border-radius: 8px;"
+            x-data
+            @scroll="if ($el.scrollTop + $el.clientHeight >= $el.scrollHeight - 5) { $wire.loadMore() }"
+        >
             @foreach ($customers as $index => $customer)
                 <li
                     wire:click="selectCustomer('{{ encrypt($customer->customer_unique_id) }}')"

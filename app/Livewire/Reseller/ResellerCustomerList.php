@@ -207,6 +207,13 @@ class ResellerCustomerList extends Component
             \DB::beginTransaction();
             $pppUser = $customerDelete->pppUser;
             if ($pppUser) {
+                if (! empty($pppUser->router_name)) {
+                    app(\App\Http\Controllers\MikrotikController::class)->removePPPSecret(
+                        $decryptedId,
+                        $pppUser->router_name,
+                        $pppUser->username
+                    );
+                }
                 $pppUser->delete();
             }
             $customerDelete->delete();

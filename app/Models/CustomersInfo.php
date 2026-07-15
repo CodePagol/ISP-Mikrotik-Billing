@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class CustomersInfo extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'customer_unique_id',
@@ -34,7 +35,16 @@ class CustomersInfo extends Model
         // 'extra_date',
     ];
 
-    // In CustomersInfo model
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::deleting(function ($customer) {
+            if ($customer->pppUser()->exists()) {
+                throw new \Exception('Cannot delete customer because they are associated with an active PPPoE user. Please remove the PPPoE user first.');
+            }
+        });
+    }
     public function scopeActive($query)
     {
         return $query->where('status', 'active');

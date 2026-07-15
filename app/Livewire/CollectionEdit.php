@@ -28,6 +28,8 @@ class CollectionEdit extends Component
 
     public $customers = [];
 
+    public $limit = 10;
+
     // In your Livewire component
     public $total_amount = 0;
 
@@ -64,6 +66,11 @@ class CollectionEdit extends Component
         return CustomersInfo::query();
     }
 
+    public function updatingCustomerList()
+    {
+        $this->limit = 10;
+    }
+
     public function updatedCustomerList()
     {
         if ($this->customer_list) {
@@ -73,7 +80,7 @@ class CollectionEdit extends Component
                 ->leftJoin('p_p_p_secrets', 'p_p_p_secrets.id', '=', 'customers_infos.ppp_user_id')
                 ->with('customerAddress')
                 ->select('customers_infos.id', 'customers_infos.customer_unique_id', 'customers_infos.customer_name', 'customers_infos.email', 'customers_infos.mobile', 'customers_infos.status', 'p_p_p_secrets.username as username')
-                ->take(10)
+                ->take($this->limit)
                 ->get();
         } else {
             $this->customers = [];
@@ -81,6 +88,12 @@ class CollectionEdit extends Component
 
         // Reset highlighted index whenever the list updates
         $this->highlightedIndex = 0;
+    }
+
+    public function loadMore()
+    {
+        $this->limit += 10;
+        $this->updatedCustomerList();
     }
 
     public function incrementHighlight()

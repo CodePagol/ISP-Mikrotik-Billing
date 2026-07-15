@@ -320,13 +320,17 @@ class CustomersController extends Controller
 
             \DB::beginTransaction();
 
-            // Check if PPP User exists and delete it from Mikrotik (throws on failure)
-            if ($customerDelete->pppUser && ! empty($customerDelete->pppUser->router_name)) {
-                app(MikrotikController::class)->removePPPSecret(
-                    $decryptedId,
-                    $customerDelete->pppUser->router_name,
-                    $customerDelete->pppUser->username
-                );
+            // Check if PPP User exists and delete it from Mikrotik and database (throws on failure)
+            $pppUser = $customerDelete->pppUser;
+            if ($pppUser) {
+                if (! empty($pppUser->router_name)) {
+                    app(MikrotikController::class)->removePPPSecret(
+                        $decryptedId,
+                        $pppUser->router_name,
+                        $pppUser->username
+                    );
+                }
+                $pppUser->delete();
             }
 
             // Delete the customer
