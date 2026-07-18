@@ -2130,5 +2130,10 @@
     "— All Topics —": "— All Topics —",
     "— Select Reseller —": "— Select Reseller —",
     "🔍 Search code / batch...": "🔍 Search code / batch...",
-    "🛜 Hotspot Vouchers &mdash; :router": "🛜 Hotspot Vouchers &mdash; :router"
+    "🛜 Hotspot Vouchers &mdash; :router": "🛜 Hotspot Vouchers &mdash; :router",
+    "Only online time": "Only online time",
+    "Countdown from login": "Countdown from login",
+    "Time starts after login, offline time is also deducted": "Time starts after login, offline time is also deducted",
+    "PIN:": "PIN:",
+    "User & Pass": "User & Pass"
 }

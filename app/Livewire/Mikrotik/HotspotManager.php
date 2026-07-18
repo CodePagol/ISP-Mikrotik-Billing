@@ -33,6 +33,8 @@ class HotspotManager extends Component
 
     public string $u_limit_bytes = '';
 
+    public string $u_validity_type = 'uptime';
+
     public ?string $editUserId = null;
 
     public string $original_u_name = '';
@@ -80,6 +82,8 @@ class HotspotManager extends Component
     public string $v_comment = '';
 
     public string $v_limit_uptime = '';
+
+    public string $v_validity_type = 'uptime';
 
     public bool $v_push_to_router = true;
 
@@ -344,12 +348,25 @@ class HotspotManager extends Component
             'sold_by' => $v->created_by,
         ]);
 
-        $v->update([
+        $updateData = [
             'status' => 'used',
             'used_by' => $v->username,
             'used_at' => now(),
             'mac_address' => $rUser['mac-address'] ?? $rUser['mac_address'] ?? null,
-        ]);
+        ];
+
+        // For realtime vouchers, record first login time for app-side expiry tracking
+        if ($v->validity_type === 'realtime' && ! $v->first_login_at) {
+            $updateData['first_login_at'] = now();
+            // Also set the absolute expires_at for easy querying
+            if ($v->validity_duration) {
+                $updateData['expires_at'] = now()->addSeconds(
+                    HotspotVoucher::parseMikrotikDuration($v->validity_duration)
+                );
+            }
+        }
+
+        $v->update($updateData);
     }
 
     public function forceSyncVouchers(): void
@@ -444,11 +461,23 @@ class HotspotManager extends Component
         $this->u_comment = $u['comment'] ?? '';
         $this->u_limit_uptime = $u['limit-uptime'] ?? '';
         $this->u_limit_bytes = $u['limit-bytes-total'] ?? '';
+
+        // Detect validity type from comment prefix or DB record
+        $comment = $u['comment'] ?? '';
+        if (str_starts_with($comment, 'RT:')) {
+            $this->u_validity_type = 'realtime';
+            // Extract duration from comment (RT:1h → 1h)
+            $this->u_limit_uptime = substr($comment, 3, strpos($comment . ' ', ' ') - 3) ?: $this->u_limit_uptime;
+        } else {
+            // Check DB record
+            $dbVoucher = HotspotVoucher::where('username', $u['name'] ?? '')->first();
+            $this->u_validity_type = $dbVoucher?->validity_type ?? 'uptime';
+        }
     }
 
     public function startAddUser(): void
     {
-        $this->reset(['u_name', 'u_password', 'u_comment', 'editUserId', 'original_u_name', 'u_limit_uptime', 'u_limit_bytes']);
+        $this->reset(['u_name', 'u_password', 'u_comment', 'editUserId', 'original_u_name', 'u_limit_uptime', 'u_limit_bytes', 'u_validity_type']);
         $this->u_profile = collect($this->userProfiles)->pluck('name')->first() ?: 'default';
         $this->dispatch('open-modal', 'userModal');
     }
@@ -492,26 +521,50 @@ class HotspotManager extends Component
             'u_comment' => 'nullable|string',
             'u_limit_uptime' => 'nullable|string',
             'u_limit_bytes' => 'nullable|string',
+            'u_validity_type' => 'required|in:uptime,realtime',
         ]);
 
         try {
+            $isRealtime = $this->u_validity_type === 'realtime';
+
             $p = [
                 'name' => $this->u_name,
                 'password' => $this->u_password,
                 'profile' => $this->u_profile,
-                'comment' => $this->u_comment,
             ];
-            if ($this->u_limit_uptime) {
-                $p['limit-uptime'] = $this->u_limit_uptime;
+
+            if ($isRealtime && $this->u_limit_uptime) {
+                // For realtime: store duration in comment, don't set limit-uptime
+                $p['comment'] = 'RT:' . $this->u_limit_uptime . ($this->u_comment ? ' ' . $this->u_comment : '');
+            } else {
+                // For uptime: use limit-uptime as before
+                $p['comment'] = $this->u_comment;
+                if ($this->u_limit_uptime) {
+                    $p['limit-uptime'] = $this->u_limit_uptime;
+                }
             }
+
             if ($this->u_limit_bytes) {
                 $p['limit-bytes-total'] = $this->u_limit_bytes;
             }
 
             $this->ctrl()->addHotspotUser($this->selectedRouter, $p, $this->original_u_name ?: null);
 
+            // For realtime: set on-login script on the profile if needed
+            if ($isRealtime && $this->u_limit_uptime) {
+                try {
+                    $this->ctrl()->setHotspotProfileOnLoginScript(
+                        $this->selectedRouter,
+                        $this->u_profile,
+                        $this->u_limit_uptime
+                    );
+                } catch (\Exception $e) {
+                    \Log::warning('Failed to set on-login script: ' . $e->getMessage());
+                }
+            }
+
             flash()->success($this->editUserId ? 'User updated!' : 'User added!');
-            $this->reset(['u_name', 'u_password', 'u_comment', 'editUserId', 'original_u_name', 'u_limit_uptime', 'u_limit_bytes']);
+            $this->reset(['u_name', 'u_password', 'u_comment', 'editUserId', 'original_u_name', 'u_limit_uptime', 'u_limit_bytes', 'u_validity_type']);
             $this->users = $this->ctrl()->getHotspotUsers($this->selectedRouter);
             $this->dispatch('reinit-datatables');
             $this->dispatch('close-modal', 'userModal');
@@ -670,8 +723,10 @@ class HotspotManager extends Component
             'v_count' => 'required|integer|min:1|max:500',
             'v_length' => 'required|integer|min:3|max:20',
             'v_pwd_length' => 'required|integer|min:3|max:20',
+            'v_validity_type' => 'required|in:uptime,realtime',
         ]);
 
+        $isRealtime = $this->v_validity_type === 'realtime';
         $batch = $this->v_batch_name ?: ('BATCH-'.strtoupper(Str::random(6)));
         $this->v_batch_name = $batch;
         $this->generatedVouchers = [];
@@ -691,6 +746,10 @@ class HotspotManager extends Component
 
             $password = $this->v_user_equals_pass ? $username : $this->generateVoucherString($this->v_type, $this->v_pwd_length);
 
+            $commentText = $isRealtime
+                ? 'RT:' . $this->v_limit_uptime . ($this->v_comment ? ' ' . $this->v_comment : '')
+                : $this->v_comment;
+
             $created[] = [
                 'router_name' => $this->selectedRouter,
                 'code' => $username,
@@ -700,25 +759,41 @@ class HotspotManager extends Component
                 'price' => $this->v_price,
                 'batch_name' => $batch,
                 'status' => 'unused',
-                'comment' => $this->v_comment,
+                'comment' => $commentText,
                 'limit_uptime' => $this->v_limit_uptime,
+                'validity_type' => $this->v_validity_type,
+                'validity_duration' => $this->v_limit_uptime ?: null,
                 'created_by' => auth()->id(),
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
         }
 
-        // Save to DB
+        // Save to DB (remove non-DB keys before insert)
         HotspotVoucher::insert(array_map(fn ($v) => array_diff_key($v, ['limit_uptime' => '']), $created));
 
         // Push to router if requested
         if ($this->v_push_to_router) {
+            // For realtime: set on-login script on the profile first
+            if ($isRealtime && $this->v_limit_uptime) {
+                try {
+                    $this->ctrl()->setHotspotProfileOnLoginScript(
+                        $this->selectedRouter,
+                        $this->v_profile,
+                        $this->v_limit_uptime
+                    );
+                } catch (\Exception $e) {
+                    \Log::warning('Failed to set on-login script for profile: ' . $e->getMessage());
+                }
+            }
+
             $batch_users = array_map(fn ($v) => [
                 'name' => $v['username'],
                 'password' => $v['password'],
                 'profile' => $v['profile'],
                 'comment' => $v['comment'] ?: $v['batch_name'],
-                'limit-uptime' => $v['limit_uptime'],
+                // Only set limit-uptime for uptime type, not for realtime
+                'limit-uptime' => $isRealtime ? '' : $v['limit_uptime'],
             ], $created);
             $results = $this->ctrl()->pushHotspotUserBatch($this->selectedRouter, $batch_users);
             $errors = array_filter($results, fn ($r) => str_starts_with($r, 'Error'));
@@ -730,7 +805,8 @@ class HotspotManager extends Component
         $this->generatedVouchers = $created;
         $this->showVoucherPreview = true;
         $this->loadStats();
-        flash()->success(count($created).' vouchers generated in batch "'.$batch.'"!');
+        $typeLabel = $isRealtime ? ' (Real-time)' : ' (Uptime)';
+        flash()->success(count($created).' vouchers generated in batch "'.$batch.'"!' . $typeLabel);
     }
 
     public function deleteVoucherBatch(string $batch): void

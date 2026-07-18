@@ -1217,6 +1217,9 @@ class MikrotikController extends Controller
         if (! empty($p['status_autorefresh'])) {
             $kv[] = 'status-autorefresh='.$p['status_autorefresh'];
         }
+        if (! empty($p['on_login'])) {
+            $kv[] = 'on-login='.$this->mtQuote($p['on_login']);
+        }
         if (! empty($p['comment'])) {
             $kv[] = 'comment='.$this->mtQuote($p['comment']);
         }
@@ -1367,6 +1370,70 @@ class MikrotikController extends Controller
             }, $users);
         } catch (\Exception $e) {
             return [];
+        }
+    }
+
+    // =========================================================================
+    // HOTSPOT REALTIME EXPIRY (Hybrid: MikroTik on-login + App scheduled)
+    // =========================================================================
+
+    /**
+     * Build the MikroTik on-login script for realtime expiry profiles.
+     * This script runs on the router when a user logs in. It checks if
+     * a scheduler already exists for this user; if not, it creates one
+     * that will disable the user after the validity period expires.
+     */
+    public function buildRealtimeOnLoginScript(string $validityDuration): string
+    {
+        // The script uses MikroTik scripting variables:
+        // $user - automatically set by hotspot to the logging-in username
+        return ':local u $user; '
+            . ':if ([:len [/system scheduler find name="hs_expire_$u"]] = 0) do={ '
+            . '/system scheduler add name="hs_expire_$u" interval=' . $validityDuration . ' '
+            . 'on-event="/ip hotspot user set [find name=\\\"$u\\\"] disabled=yes; '
+            . '/ip hotspot active remove [find user=\\\"$u\\\"]; '
+            . '/system scheduler remove [find name=hs_expire_$u]" '
+            . 'policy=ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon '
+            . '}';
+    }
+
+    /**
+     * Set the on-login script on a hotspot user profile for realtime expiry.
+     */
+    public function setHotspotProfileOnLoginScript(string $routerName, string $profileName, string $validityDuration): string
+    {
+        $script = $this->buildRealtimeOnLoginScript($validityDuration);
+        $cmd = '/ip hotspot user profile set [find name=' . $this->mtQuote($profileName) . '] '
+            . 'on-login=' . $this->mtQuote($script);
+
+        \Log::debug("HotspotProfile on-login script [{$routerName}]: {$cmd}");
+
+        return $this->singleWrite($routerName, $cmd);
+    }
+
+    /**
+     * Disable a hotspot user on the router (for expiry).
+     */
+    public function disableHotspotUser(string $routerName, string $name): string
+    {
+        $cmd = '/ip hotspot user set [find name=' . $this->mtQuote($name) . '] disabled=yes';
+
+        return $this->singleWrite($routerName, $cmd);
+    }
+
+    /**
+     * Remove the expiry scheduler for a hotspot user from the router.
+     */
+    public function removeHotspotExpiryScheduler(string $routerName, string $username): string
+    {
+        $schedulerName = 'hs_expire_' . $username;
+        $cmd = '/system scheduler remove [find name=' . $this->mtQuote($schedulerName) . ']';
+
+        try {
+            return $this->singleWrite($routerName, $cmd);
+        } catch (\Exception $e) {
+            // Scheduler may not exist, that's OK
+            return '';
         }
     }
 

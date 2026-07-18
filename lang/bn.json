@@ -2282,5 +2282,10 @@
     "— All Topics —": "— সমস্ত বিষয় —",
     "— Select Reseller —": "- রিসেলার নির্বাচন করুন -",
     "🔍 Search code / batch...": "🔍 অনুসন্ধান কোড / ব্যাচ...",
-    "🛜 Hotspot Vouchers &mdash; :router": "🛜 হটস্পট ভাউচার&mdash;:router"
+    "🛜 Hotspot Vouchers &mdash; :router": "🛜 হটস্পট ভাউচার&mdash;:router",
+    "Only online time": "শুধু অনলাইন সময়",
+    "Countdown from login": "লগইন থেকে countdown",
+    "Time starts after login, offline time is also deducted": "লগইন করলেই time শুরু, off থাকলেও কমবে",
+    "PIN:": "পিন:",
+    "User & Pass": "ইউজার ও পাসওয়ার্ড"
 }

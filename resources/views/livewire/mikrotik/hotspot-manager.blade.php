@@ -5,9 +5,22 @@
     <style>
         /* ── Voucher Print Styles ── */
         @media print {
-            body * { visibility: hidden; }
-            #voucher-print-area, #voucher-print-area * { visibility: visible; }
-            #voucher-print-area { position: absolute; left: 0; top: 0; width: 100%; }
+            body > *:not(#voucher-print-area) {
+                display: none !important;
+            }
+            #voucher-print-area {
+                display: block !important;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: #fff;
+                margin: 0;
+                padding: 0;
+            }
+            #voucher-print-area, #voucher-print-area * {
+                visibility: visible !important;
+            }
             .no-print { display: none !important; }
         }
         .voucher-card {
@@ -62,12 +75,25 @@
         
         /* Premium Voucher */
         .voucher-premium {
-            width: 220px;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
+            width: 250px;
+            border-radius: 16px;
             overflow: hidden;
-            background: #fff;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            background: #ffffff;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -2px rgba(0,0,0,0.05);
+            border: 1px solid rgba(79, 70, 229, 0.15);
+            position: relative;
+            margin: 5px;
+            display: inline-block;
+            text-align: center;
+        }
+        .voucher-premium::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #4f46e5, #7c3aed, #ec4899);
         }
         .voucher-header {
             background: linear-gradient(135deg, #4f46e5, #7c3aed);
@@ -190,7 +216,7 @@
             <div class="stat-card" style="background:linear-gradient(135deg,#0ea5e9,#0284c7)">
                 <i class="bi bi-cash-coin stat-icon"></i>
                 <div>
-                    <div class="stat-value">৳{{ number_format($monthIncome,0) }}</div>
+                    <div class="stat-value">{{ siteUrlSettings('site_currency') ?? '৳' }}{{ number_format($monthIncome,0) }}</div>
                     <div class="stat-label">{{ __('This Month Income') }}</div>
                 </div>
             </div>
@@ -263,7 +289,7 @@
             <div class="card border-0 shadow-sm mb-3">
                 <div class="card-header bg-white fw-bold"><i class="bi bi-cash me-1 text-success"></i>{{ __('Today Income') }}</div>
                 <div class="card-body text-center py-4">
-                    <div style="font-size:2.4rem;font-weight:900;color:#16a34a">৳{{ number_format($todayIncome,2) }}</div>
+                    <div style="font-size:2.4rem;font-weight:900;color:#16a34a">{{ siteUrlSettings('site_currency') ?? '৳' }}{{ number_format($todayIncome,2) }}</div>
                     <small class="text-muted">{{ now()->format('d M Y') }}</small>
                 </div>
             </div>
@@ -424,7 +450,7 @@
                             @if($v_profile)
                                 @php $localPkg = collect($hotspotPackages)->firstWhere('package', $v_profile); @endphp
                                 @if($localPkg)
-                                    <div class="x-small text-success mt-1"><i class="bi bi-check-circle"></i> {{ __('Linked to DB Package:') }} ৳{{ $localPkg->price }}</div>
+                                    <div class="x-small text-success mt-1"><i class="bi bi-check-circle"></i> {{ __('Linked to DB Package:') }} {{ siteUrlSettings('site_currency') ?? '৳' }}{{ $localPkg->price }}</div>
                                 @endif
                             @endif
                         </div>
@@ -466,13 +492,33 @@
                             <input type="number" class="form-control form-control-sm" wire:model.defer="v_pwd_length" min="3" max="20">
                         </div>
                         @endif
+                        <div class="mb-2">
+                            <label class="form-label fw-semibold"><i class="bi bi-clock-history me-1"></i>{{ __('Validity Type') }}</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" wire:model.live="v_validity_type" value="uptime" id="v_vt_uptime" autocomplete="off">
+                                <label class="btn btn-outline-primary btn-sm" for="v_vt_uptime">
+                                    <i class="bi bi-wifi me-1"></i>{{ __('Uptime') }}
+                                    <small class="d-block text-muted" style="font-size:0.65rem">{{ __('Only online time') }}</small>
+                                </label>
+                                <input type="radio" class="btn-check" wire:model.live="v_validity_type" value="realtime" id="v_vt_realtime" autocomplete="off">
+                                <label class="btn btn-outline-danger btn-sm" for="v_vt_realtime">
+                                    <i class="bi bi-hourglass-split me-1"></i>{{ __('Real-time') }}
+                                    <small class="d-block text-muted" style="font-size:0.65rem">{{ __('Countdown from login') }}</small>
+                                </label>
+                            </div>
+                        </div>
                         <div class="row g-2 mb-2">
                             <div class="col-6">
-                                <label class="form-label">{{ __('Price (৳)') }}</label>
+                                <label class="form-label">{{ __('Price') }} ({{ siteUrlSettings('site_currency') ?? '৳' }})</label>
                                 <input type="number" step="0.01" class="form-control form-control-sm" wire:model.defer="v_price" min="0">
                             </div>
                             <div class="col-6">
-                                <label class="form-label">{{ __('Limit Uptime') }}</label>
+                                <label class="form-label">
+                                    {{ $v_validity_type === 'realtime' ? __('Validity Duration') : __('Limit Uptime') }}
+                                    @if($v_validity_type === 'realtime')
+                                        <span class="badge bg-danger ms-1" style="font-size:0.6rem">RT</span>
+                                    @endif
+                                </label>
                                 <select class="form-select form-select-sm" wire:model.defer="v_limit_uptime">
                                     <option value="">{{ __('No Limit') }}</option>
                                     <option value="1h">{{ __('1 Hour') }}</option>
@@ -488,6 +534,9 @@
                                     <option value="7d">{{ __('7 Days') }}</option>
                                     <option value="30d">{{ __('30 Days') }}</option>
                                 </select>
+                                @if($v_validity_type === 'realtime')
+                                    <div class="form-text text-danger"><small><i class="bi bi-exclamation-triangle me-1"></i>{{ __('Time starts after login, offline time is also deducted') }}</small></div>
+                                @endif
                             </div>
                         </div>
                         <div class="mb-2">
@@ -546,10 +595,10 @@
                         <thead><tr><th>{{ __('Batch') }}</th><th>{{ __('Profile') }}</th><th>{{ __('Price') }}</th><th>{{ __('Unused') }}</th><th>{{ __('Used') }}</th><th class="no-print">{{ __('Actions') }}</th></tr></thead>
                         <tbody>
                         @foreach($voucherBatches as $b)
-                        <tr>
+                        <tr wire:key="batch-row-{{ $b->batch_name }}-{{ $loop->index }}">
                             <td><code class="small">{{ $b->batch_name }}</code></td>
                             <td><span class="badge badge-profile">{{ $b->profile }}</span></td>
-                            <td><small>৳{{ number_format($b->price,0) }}</small></td>
+                            <td><small>{{ siteUrlSettings('site_currency') ?? '৳' }}{{ number_format($b->price,0) }}</small></td>
                             <td><span class="badge bg-success">{{ $b->unused_count }}</span></td>
                             <td><span class="badge bg-secondary">{{ $b->used_count }}</span></td>
                             <td class="no-print">
@@ -781,7 +830,7 @@
                             <strong>{{ $pkg->package }}</strong>
                             @if($pkg->mikrotik_rate_limit)<br><code class="x-small text-danger">{{ $pkg->mikrotik_rate_limit }}</code>@endif
                         </div>
-                        <span class="badge bg-light text-dark border">৳{{ number_format($pkg->price,0) }}</span>
+                        <span class="badge bg-light text-dark border">{{ siteUrlSettings('site_currency') ?? '৳' }}{{ number_format($pkg->price,0) }}</span>
                     </div>
                     @empty
                     <div class="p-3 text-center text-muted x-small">{{ __('No packages in database.') }}</div>
@@ -896,7 +945,7 @@
                         </div>
                         <div class="row g-2 mb-2">
                             <div class="col-7">
-                                <label class="form-label">{!! __('Amount (৳) :info', ['info' => '<span class="text-danger">*</span>']) !!}</label>
+                                <label class="form-label">{!! __('Amount (:currency) :info', ['currency' => siteUrlSettings('site_currency') ?? '৳', 'info' => '<span class="text-danger">*</span>']) !!}</label>
                                 <input type="number" step="0.01" class="form-control form-control-sm" wire:model.defer="s_amount">
                                 @error('s_amount')<div class="text-danger small">{{ $message }}</div>@enderror
                             </div>
@@ -934,13 +983,13 @@
             <div class="row g-2 mb-3">
                 <div class="col-4">
                     <div class="card text-center py-2 border-start border-4 border-success">
-                        <div class="fw-bold fs-5 text-success">৳{{ number_format($todayIncome,2) }}</div>
+                        <div class="fw-bold fs-5 text-success">{{ siteUrlSettings('site_currency') ?? '৳' }}{{ number_format($todayIncome,2) }}</div>
                         <small class="text-muted">{{ __('Today') }}</small>
                     </div>
                 </div>
                 <div class="col-4">
                     <div class="card text-center py-2 border-start border-4 border-primary">
-                        <div class="fw-bold fs-5 text-primary">৳{{ number_format($monthIncome,2) }}</div>
+                        <div class="fw-bold fs-5 text-primary">{{ siteUrlSettings('site_currency') ?? '৳' }}{{ number_format($monthIncome,2) }}</div>
                         <small class="text-muted">{{ __('This Month') }}</small>
                     </div>
                 </div>
@@ -965,7 +1014,7 @@
                                 <td><small>{{ $s->sale_date->format('d M Y') }}</small></td>
                                 <td><strong class="small">{{ $s->username }}</strong></td>
                                 <td><span class="badge badge-profile small">{{ $s->profile }}</span></td>
-                                <td><strong class="text-success">৳{{ number_format($s->amount,2) }}</strong></td>
+                                <td><strong class="text-success">{{ siteUrlSettings('site_currency') ?? '৳' }}{{ number_format($s->amount,2) }}</strong></td>
                                 <td><span class="badge bg-light text-dark border small">{{ $s->payment_method }}</span></td>
                                 <td><code class="small">{{ $s->voucher_code ?? '—' }}</code></td>
                                 <td><small class="text-muted">{{ $s->note }}</small></td>
@@ -982,7 +1031,7 @@
                             <tfoot class="table-light">
                                 <tr>
                                     <td colspan="3" class="text-end fw-bold small">{{ __('Total:') }}</td>
-                                    <td><strong class="text-success">৳{{ number_format($sales->sum('amount'),2) }}</strong></td>
+                                    <td><strong class="text-success">{{ siteUrlSettings('site_currency') ?? '৳' }}{{ number_format($sales->sum('amount'),2) }}</strong></td>
                                     <td colspan="4"></td>
                                 </tr>
                             </tfoot>
@@ -1024,7 +1073,7 @@
     <div class="row g-3 mb-3">
         <div class="col-md-4">
             <div class="card text-center py-3 border-0 shadow-sm">
-                <div style="font-size:1.8rem;font-weight:800;color:#16a34a">৳{{ number_format($r['total'] ?? 0, 2) }}</div>
+                <div style="font-size:1.8rem;font-weight:800;color:#16a34a">{{ siteUrlSettings('site_currency') ?? '৳' }}{{ number_format($r['total'] ?? 0, 2) }}</div>
                 <small class="text-muted">{!! __('Total Income (:from &rarr; :to)', ['from' => e($r['from'] ?? ''), 'to' => e($r['to'] ?? '')]) !!}</small>
             </div>
         </div>
@@ -1036,7 +1085,7 @@
         </div>
         <div class="col-md-4">
             <div class="card text-center py-3 border-0 shadow-sm">
-                <div style="font-size:1.8rem;font-weight:800;color:#f59e0b">৳{{ $r['count'] > 0 ? number_format(($r['total'] ?? 0) / $r['count'], 2) : '0.00' }}</div>
+                <div style="font-size:1.8rem;font-weight:800;color:#f59e0b">{{ siteUrlSettings('site_currency') ?? '৳' }}{{ $r['count'] > 0 ? number_format(($r['total'] ?? 0) / $r['count'], 2) : '0.00' }}</div>
                 <small class="text-muted">{{ __('Avg Per Sale') }}</small>
             </div>
         </div>
@@ -1058,7 +1107,7 @@
                             <tr>
                                 <td><strong class="small">{{ \Carbon\Carbon::parse($date)->format('d M Y') }}</strong></td>
                                 <td><span class="badge bg-primary">{{ $daySales->count() }}</span></td>
-                                <td><strong class="text-success">৳{{ number_format($dayTotal,2) }}</strong></td>
+                                <td><strong class="text-success">{{ siteUrlSettings('site_currency') ?? '৳' }}{{ number_format($dayTotal,2) }}</strong></td>
                                 <td>
                                     @if($grandTotal > 0)
                                     <div class="d-flex align-items-center gap-2">
@@ -1091,7 +1140,7 @@
                             <span class="badge badge-profile">{{ $bp['profile'] }}</span>
                             <small class="text-muted ms-1">×{{ $bp['count'] }}</small>
                         </div>
-                        <strong class="text-success small">৳{{ number_format($bp['total'],2) }}</strong>
+                        <strong class="text-success small">{{ siteUrlSettings('site_currency') ?? '৳' }}{{ number_format($bp['total'],2) }}</strong>
                     </div>
                     @empty
                     <div class="text-center text-muted py-4 small">{{ __('No profile data.') }}</div>
@@ -1286,11 +1335,36 @@
                                 </select>
                                 @error('u_profile')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold"><i class="bi bi-clock-history me-1"></i>{{ __('Validity Type') }}</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" wire:model.live="u_validity_type" value="uptime" id="u_vt_uptime" autocomplete="off">
+                                    <label class="btn btn-outline-primary btn-sm" for="u_vt_uptime">
+                                        <i class="bi bi-wifi me-1"></i>{{ __('Uptime') }}
+                                        <small class="d-block text-muted" style="font-size:0.65rem">{{ __('Only online time') }}</small>
+                                    </label>
+                                    <input type="radio" class="btn-check" wire:model.live="u_validity_type" value="realtime" id="u_vt_realtime" autocomplete="off">
+                                    <label class="btn btn-outline-danger btn-sm" for="u_vt_realtime">
+                                        <i class="bi bi-hourglass-split me-1"></i>{{ __('Real-time') }}
+                                        <small class="d-block text-muted" style="font-size:0.65rem">{{ __('Countdown from login') }}</small>
+                                    </label>
+                                </div>
+                            </div>
                             <div class="col-6">
-                                <label class="form-label">{!! __('Limit Uptime :info', ['info' => '<small class="text-muted">(ex: 60m)</small>']) !!}</label>
+                                <label class="form-label">
+                                    {{ $u_validity_type === 'realtime' ? __('Validity Duration') : __('Limit Uptime') }}
+                                    @if($u_validity_type === 'realtime')
+                                        <span class="badge bg-danger ms-1" style="font-size:0.6rem">RT</span>
+                                    @endif
+                                    <small class="text-muted">(ex: 60m)</small>
+                                </label>
                                 <input type="text" class="form-control form-control-sm"
                                        wire:model="u_limit_uptime" placeholder="60m">
-                                <div class="form-text">{{ __('Leave blank for unlimited.') }}</div>
+                                @if($u_validity_type === 'realtime')
+                                    <div class="form-text text-danger"><small><i class="bi bi-exclamation-triangle me-1"></i>{{ __('Time starts after login, offline time is also deducted') }}</small></div>
+                                @else
+                                    <div class="form-text">{{ __('Leave blank for unlimited.') }}</div>
+                                @endif
                             </div>
                             <div class="col-6">
                                 <label class="form-label">{{ __('Limit Bytes (Total)') }}</label>
@@ -1384,32 +1458,81 @@
             initChart();
             Livewire.on('reinit-chart', () => { setTimeout(initChart, 100); });
 
-            Livewire.on('print-vouchers', (data) => {
-                const payload = data[0] || data;
+            Livewire.on('print-vouchers', (...args) => {
+                let vouchers = [];
+                let batch = 'Voucher';
+                let router = '';
+
+                // Log arguments for debugging
+                console.log('print-vouchers triggered with args:', args);
+
+                const firstArg = args[0];
+                if (firstArg) {
+                    if (Array.isArray(firstArg)) {
+                        // Case 1: First argument is the vouchers array (Livewire 3 positional/spread args)
+                        vouchers = firstArg;
+                        batch = args[1] || 'Voucher';
+                        router = args[2] || '';
+                    } else if (typeof firstArg === 'object') {
+                        // Case 2: First argument is an object with vouchers property (Livewire 3 named arguments wrapped in object)
+                        if (firstArg.vouchers && Array.isArray(firstArg.vouchers)) {
+                            vouchers = firstArg.vouchers;
+                            batch = firstArg.batch || 'Voucher';
+                            router = firstArg.router || '';
+                        }
+                        // Case 3: First argument is a nested array of arguments
+                        else if (firstArg[0] && firstArg[0].vouchers && Array.isArray(firstArg[0].vouchers)) {
+                            vouchers = firstArg[0].vouchers;
+                            batch = firstArg[0].batch || 'Voucher';
+                            router = firstArg[0].router || '';
+                        }
+                    }
+                }
+
                 const container = document.getElementById('voucher-cards-container');
                 const area = document.getElementById('voucher-print-area');
-                if (!container || !area || !payload.vouchers?.length) {
-                    console.warn('print-vouchers: missing DOM or empty vouchers');
+                if (!container || !area || !vouchers || !vouchers.length) {
+                    console.warn('print-vouchers: missing DOM or empty vouchers', { container, area, vouchers });
                     return;
                 }
 
                 container.innerHTML = '';
 
-                payload.vouchers.forEach((v, index) => {
+                vouchers.forEach((v, index) => {
                     const id = 'qr-' + index;
                     const cardHtml = `
-                        <div class="voucher-premium" style="break-inside: avoid; margin-bottom: 5px;">
-                            <div class="voucher-header">🛜 {{ __('Hotspot Voucher') }}</div>
+                        <div class="voucher-premium" style="break-inside: avoid; margin-bottom: 8px;">
+                            <div class="voucher-header">
+                                <i class="bi bi-wifi text-primary me-1"></i>
+                                {{ siteUrlSettings('site_title') ?? config('app.name') }}
+                            </div>
                             <div class="voucher-body">
-                                ${v.qr_code === 'yes' ? `<canvas id="${id}" class="voucher-qr" style="width:80px;height:80px;"></canvas>` : ''}
-                                <div class="voucher-user">${v.username}</div>
-                                <div class="voucher-pass">${v.username === v.password ? '{{ __('PIN Only') }}' : '{{ __('Password:') }} ' + v.password}</div>
+                                ${v.qr_code === 'yes' ? `<canvas id="${id}" class="voucher-qr"></canvas>` : ''}
+                                ${v.username === v.password ? `
+                                    <div class="voucher-pass" style="font-size: 0.72rem; color: #64748b; margin-bottom: 2px; text-transform: uppercase; font-weight: bold; width:100%;text-align:center;">
+                                        {{ __('User & Pass') }}
+                                    </div>
+                                    <div class="voucher-user" style="font-size: 1.35rem; font-weight: 900; color: #1e293b; letter-spacing: 1.5px; margin-bottom: 8px; width:100%;text-align:center;">
+                                        ${v.username}
+                                    </div>
+                                ` : `
+                                    <div class="voucher-user" style="width:100%;text-align:center;">${v.username}</div>
+                                    <div class="voucher-pass" style="width:100%;text-align:center;">
+                                        <span style="color:#64748b;font-weight:normal;">{{ __('Password:') }}</span> ${v.password}
+                                    </div>
+                                `}
                                 <div class="voucher-info">
-                                    <span>{{ __('Profile:') }} <b>${v.profile}</b></span>
-                                    <span>{{ __('Price:') }} <b>৳${v.price}</b></span>
+                                    <div class="voucher-info-item" style="width:100%;text-align:center;">
+                                        <span class="voucher-info-label">{{ __('Profile') }}</span>
+                                        <span class="voucher-info-value">${v.profile}</span>
+                                    </div>
+                                    <div class="voucher-info-item" style="width:100%;text-align:center;">
+                                        <span class="voucher-info-label">{{ __('Price') }}</span>
+                                        <span class="voucher-info-value">{{ siteUrlSettings('site_currency') ?? '৳' }}${v.price}</span>
+                                    </div>
                                 </div>
-                                <div style="font-size: .6rem; color: #94a3b8; margin-top: 5px; text-align: center; width: 100%;">
-                                    {{ __('Connecting you to the world') }} • ${payload.router}
+                                <div class="voucher-footer" style="width:100%;text-align:center;">
+                                    {{ str_replace(['http://', 'https://'], '', config('app.url')) }} • ${router}
                                 </div>
                             </div>
                         </div>`;
@@ -1418,20 +1541,59 @@
                     wrapper.innerHTML = cardHtml;
                     container.appendChild(wrapper.firstElementChild);
 
-                    QRCode.toCanvas(document.getElementById(id), v.username, {
-                        width: 80,
-                        margin: 1,
-                        color: {
-                            dark: "#1e293b",
-                            light: "#ffffff"
+                    if (v.qr_code === 'yes') {
+                        const qrCanvas = document.getElementById(id);
+                        if (qrCanvas && typeof QRCode !== 'undefined') {
+                            QRCode.toCanvas(qrCanvas, v.username, {
+                                width: 80,
+                                margin: 1,
+                                color: {
+                                    dark: "#1e293b",
+                                    light: "#ffffff"
+                                }
+                            }, (err) => { if (err) console.error(err); });
                         }
-                    }, (err) => { if (err) console.error(err); });
+                    }
                 });
 
+                // Temporarily move print area to body to bypass nested wrapper overflow/display issues
+                const originalParent = area.parentNode;
+                const originalNextSibling = area.nextSibling;
+                document.body.appendChild(area);
+
                 area.style.display = 'block';
+
                 setTimeout(() => {
-                    window.print();
-                    area.style.display = 'none';
+                    try {
+                        if (typeof Window.prototype.print === 'function') {
+                            Window.prototype.print.call(window);
+                        } else {
+                            window.print();
+                        }
+                    } catch (e) {
+                        console.error('Native print call failed, attempting print-js fallback:', e);
+                        // Fallback using print-js
+                        if (typeof window.print === 'function') {
+                            try {
+                                window.print({
+                                    printable: 'voucher-print-area',
+                                    type: 'html',
+                                    targetStyles: ['*']
+                                });
+                            } catch (err) {
+                                console.error('print-js fallback also failed:', err);
+                            }
+                        }
+                    } finally {
+                        area.style.display = 'none';
+                        
+                        // Move print area back to original position
+                        if (originalNextSibling) {
+                            originalParent.insertBefore(area, originalNextSibling);
+                        } else {
+                            originalParent.appendChild(area);
+                        }
+                    }
                 }, 500);
             });
         });

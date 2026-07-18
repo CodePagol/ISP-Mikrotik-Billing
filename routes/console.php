@@ -34,6 +34,8 @@ Schedule::call(function () {
 
 Schedule::command('app:poll-router-logs')->everyMinute();
 
+Schedule::command('app:expire-realtime-hotspot-users')->everyFiveMinutes();
+
 Schedule::call(function () {
     $days = (int) MainSiteData::getValue('log_retention_days', 30);
     app(MikrotikController::class)->pruneOldLogs($days);
