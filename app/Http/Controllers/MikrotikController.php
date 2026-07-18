@@ -1385,14 +1385,22 @@ class MikrotikController extends Controller
      */
     public function buildRealtimeOnLoginScript(string $validityDuration): string
     {
+        // OLD CODE (Disable user):
+        // return ':local u $user; '
+        //     . ':if ([:len [/system scheduler find name=("hs_expire_" . $u)]] = 0) do={ '
+        //     . '/system scheduler add name=("hs_expire_" . $u) interval=' . $validityDuration . ' '
+        //     . 'on-event=("/ip hotspot user set [find name=\\\"" . $u . "\\\"] disabled=yes; /ip hotspot active remove [find user=\\\"" . $u . "\\\"]; /system scheduler remove [find name=\\\"hs_expire_" . $u . "\\\"]") '
+        //     . 'policy=ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon '
+        //     . '}';
+
+        // NEW CODE (Delete user):
         // The script uses MikroTik scripting variables:
         // $user - automatically set by hotspot to the logging-in username
+        // We use MikroTik string concatenation (.) to bake the username ($u) directly into the hardcoded scheduler script
         return ':local u $user; '
-            . ':if ([:len [/system scheduler find name="hs_expire_$u"]] = 0) do={ '
-            . '/system scheduler add name="hs_expire_$u" interval=' . $validityDuration . ' '
-            . 'on-event="/ip hotspot user set [find name=\\\"$u\\\"] disabled=yes; '
-            . '/ip hotspot active remove [find user=\\\"$u\\\"]; '
-            . '/system scheduler remove [find name=hs_expire_$u]" '
+            . ':if ([:len [/system scheduler find name=("hs_expire_" . $u)]] = 0) do={ '
+            . '/system scheduler add name=("hs_expire_" . $u) interval=' . $validityDuration . ' '
+            . 'on-event=("/ip hotspot user remove [find name=\\\"" . $u . "\\\"]; /ip hotspot active remove [find user=\\\"" . $u . "\\\"]; /system scheduler remove [find name=\\\"hs_expire_" . $u . "\\\"]") '
             . 'policy=ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon '
             . '}';
     }

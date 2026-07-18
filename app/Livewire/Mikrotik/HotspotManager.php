@@ -330,6 +330,9 @@ class HotspotManager extends Component
                     // This is 'Unsynced'. We'll show a warning or provide a button to push.
                 }
             }
+
+            // 3. Auto-disable expired countdown (realtime) vouchers
+            $this->expireRealtimeVouchers();
         } catch (\Exception $e) {
         }
     }
@@ -357,16 +360,72 @@ class HotspotManager extends Component
 
         // For realtime vouchers, record first login time for app-side expiry tracking
         if ($v->validity_type === 'realtime' && ! $v->first_login_at) {
-            $updateData['first_login_at'] = now();
+            $uptimeStr = $rUser['uptime'] ?? '0s';
+            $uptimeSeconds = HotspotVoucher::parseUptimeToSeconds($uptimeStr);
+            $firstLogin = now()->subSeconds($uptimeSeconds);
+
+            $updateData['first_login_at'] = $firstLogin;
             // Also set the absolute expires_at for easy querying
             if ($v->validity_duration) {
-                $updateData['expires_at'] = now()->addSeconds(
+                $updateData['expires_at'] = $firstLogin->copy()->addSeconds(
                     HotspotVoucher::parseMikrotikDuration($v->validity_duration)
                 );
             }
         }
 
         $v->update($updateData);
+    }
+
+    /**
+     * Check and disable expired countdown (realtime) vouchers on the router.
+     * Vouchers with status=used, first_login_at set, and validity_duration passed will be disabled.
+     */
+    protected function expireRealtimeVouchers(): void
+    {
+        $expired = HotspotVoucher::forRouter($this->selectedRouter)
+            ->realtimeExpired()
+            ->get();
+
+        foreach ($expired as $v) {
+            if (! $v->isRealtimeExpired()) {
+                continue;
+            }
+
+            try {
+                // OLD CODE (Disable & Expired Status):
+                // // Disable user on router
+                // $this->ctrl()->disableHotspotUser($this->selectedRouter, $v->username);
+                // // Disconnect active session if any
+                // try {
+                //     $this->ctrl()->disconnectHotspotUser($this->selectedRouter, $v->username);
+                // } catch (\Exception $e) {}
+                // // Clean up the scheduler on router
+                // $this->ctrl()->removeHotspotExpiryScheduler($this->selectedRouter, $v->username);
+                // // Mark as expired in DB
+                // $v->update(['status' => 'expired']);
+
+                // NEW CODE (Remove & Delete):
+                // Remove user from router
+                $this->ctrl()->removeHotspotUser($this->selectedRouter, $v->username);
+
+                // Disconnect active session if any
+                try {
+                    $this->ctrl()->disconnectHotspotUser($this->selectedRouter, $v->username);
+                } catch (\Exception $e) {
+                    // Session might not exist
+                }
+
+                // Clean up the scheduler on router
+                $this->ctrl()->removeHotspotExpiryScheduler($this->selectedRouter, $v->username);
+
+                // Delete from DB
+                $v->delete();
+
+                \Log::info("Realtime expired and deleted (sync): {$v->username} on {$this->selectedRouter}");
+            } catch (\Exception $e) {
+                \Log::warning("Failed to expire/delete {$v->username}: " . $e->getMessage());
+            }
+        }
     }
 
     public function forceSyncVouchers(): void
@@ -392,13 +451,17 @@ class HotspotManager extends Component
             $pushedCount = 0;
             foreach ($missingOnRouter as $v) {
                 if (! in_array($v->username, $routerUsernames)) {
-                    $this->ctrl()->addHotspotUser($this->selectedRouter, [
-                        'name' => $v->username,
-                        'password' => $v->password,
-                        'profile' => $v->profile,
-                        'comment' => 'Synced: '.($v->batch_name ?: 'bulk'),
-                    ]);
-                    $pushedCount++;
+                    try {
+                        $this->ctrl()->addHotspotUser($this->selectedRouter, [
+                            'name' => $v->username,
+                            'password' => $v->password,
+                            'profile' => $v->profile,
+                            'comment' => 'Synced: '.($v->batch_name ?: 'bulk'),
+                        ]);
+                        $pushedCount++;
+                    } catch (\Exception $ex) {
+                        \Log::warning("Failed to push voucher {$v->username} to router: " . $ex->getMessage());
+                    }
                 }
             }
 
@@ -456,7 +519,12 @@ class HotspotManager extends Component
         $this->editUserId = $u['.id'] ?? null;
         $this->original_u_name = $u['name'] ?? '';
         $this->u_name = $u['name'] ?? '';
-        $this->u_password = $u['password'] ?? '';
+        
+        $dbVoucher = HotspotVoucher::forRouter($this->selectedRouter)
+            ->where('username', $u['name'] ?? '')
+            ->first();
+        $this->u_password = !empty($u['password']) ? $u['password'] : ($dbVoucher?->password ?? '');
+
         $this->u_profile = $u['profile'] ?? 'default';
         $this->u_comment = $u['comment'] ?? '';
         $this->u_limit_uptime = $u['limit-uptime'] ?? '';
@@ -548,20 +616,40 @@ class HotspotManager extends Component
                 $p['limit-bytes-total'] = $this->u_limit_bytes;
             }
 
+            // Find price from linked DB packages if possible
+            $pkg = collect($this->hotspotPackages)->firstWhere('package', $this->u_profile);
+            $price = $pkg ? (float) $pkg->price : 0;
+
+            // 1. Create or Update local DB voucher record first to keep password safe
+            HotspotVoucher::updateOrCreate(
+                [
+                    'router_name' => $this->selectedRouter,
+                    'username' => $this->u_name,
+                ],
+                [
+                    'code' => $this->u_name,
+                    'password' => $this->u_password,
+                    'profile' => $this->u_profile,
+                    'price' => $price,
+                    'status' => 'unused',
+                    'comment' => $p['comment'] ?? '',
+                    'validity_type' => $this->u_validity_type,
+                    'validity_duration' => $isRealtime ? $this->u_limit_uptime : null,
+                    'created_by' => auth()->id() ?: 1,
+                ]
+            );
+
+            // If username was renamed, clean up old DB voucher record
+            if ($this->original_u_name && $this->original_u_name !== $this->u_name) {
+                HotspotVoucher::forRouter($this->selectedRouter)
+                    ->where('username', $this->original_u_name)
+                    ->delete();
+            }
+
+            // 2. Add/Update on MikroTik Router
             $this->ctrl()->addHotspotUser($this->selectedRouter, $p, $this->original_u_name ?: null);
 
-            // For realtime: set on-login script on the profile if needed
-            if ($isRealtime && $this->u_limit_uptime) {
-                try {
-                    $this->ctrl()->setHotspotProfileOnLoginScript(
-                        $this->selectedRouter,
-                        $this->u_profile,
-                        $this->u_limit_uptime
-                    );
-                } catch (\Exception $e) {
-                    \Log::warning('Failed to set on-login script: ' . $e->getMessage());
-                }
-            }
+
 
             flash()->success($this->editUserId ? 'User updated!' : 'User added!');
             $this->reset(['u_name', 'u_password', 'u_comment', 'editUserId', 'original_u_name', 'u_limit_uptime', 'u_limit_bytes', 'u_validity_type']);
@@ -774,18 +862,7 @@ class HotspotManager extends Component
 
         // Push to router if requested
         if ($this->v_push_to_router) {
-            // For realtime: set on-login script on the profile first
-            if ($isRealtime && $this->v_limit_uptime) {
-                try {
-                    $this->ctrl()->setHotspotProfileOnLoginScript(
-                        $this->selectedRouter,
-                        $this->v_profile,
-                        $this->v_limit_uptime
-                    );
-                } catch (\Exception $e) {
-                    \Log::warning('Failed to set on-login script for profile: ' . $e->getMessage());
-                }
-            }
+
 
             $batch_users = array_map(fn ($v) => [
                 'name' => $v['username'],

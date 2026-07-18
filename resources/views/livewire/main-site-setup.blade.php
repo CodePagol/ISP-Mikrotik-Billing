@@ -311,15 +311,21 @@
                             <div class="row g-3">
                                 <div class="col-md-4 card p-3 shadow-none border bg-light bg-opacity-25 rounded-3">
                                     <label class="form-label fw-bold text-center border-bottom pb-2">{{ __('Main Site Logo') }}</label>
-                                    {{ $this->form->getComponent('site_logo') }}
+                                    <div wire:key="site_logo-wrapper">
+                                        {{ $this->form->getComponent('site_logo') }}
+                                    </div>
                                 </div>
                                 <div class="col-md-4 card p-3 shadow-none border bg-light bg-opacity-25 rounded-3">
                                     <label class="form-label fw-bold text-center border-bottom pb-2">{{ __('Square App Icon') }}</label>
-                                    {{ $this->form->getComponent('site_icon') }}
+                                    <div wire:key="site_icon-wrapper">
+                                        {{ $this->form->getComponent('site_icon') }}
+                                    </div>
                                 </div>
                                 <div class="col-md-4 card p-3 shadow-none border bg-light bg-opacity-25 rounded-3">
                                     <label class="form-label fw-bold text-center border-bottom pb-2">{{ __('Browser Favicon') }}</label>
-                                    {{ $this->form->getComponent('site_favicon') }}
+                                    <div wire:key="site_favicon-wrapper">
+                                        {{ $this->form->getComponent('site_favicon') }}
+                                    </div>
                                 </div>
                             </div>
 
@@ -631,11 +637,15 @@
                             <div class="row g-3">
                                 <div class="col-md-4 card p-3 shadow-none border bg-light bg-opacity-25 rounded-3">
                                     <label class="form-label fw-bold text-center border-bottom pb-2">{{ __('Invoice PDF Logo') }}</label>
-                                    {{ $this->form->getComponent('site_invoice_logo') }}
+                                    <div wire:key="site_invoice_logo-wrapper">
+                                        {{ $this->form->getComponent('site_invoice_logo') }}
+                                    </div>
                                 </div>
                                 <div class="col-md-4 card p-3 shadow-none border bg-light bg-opacity-25 rounded-3">
                                     <label class="form-label fw-bold text-center border-bottom pb-2">{{ __('Authorized Signature') }}</label>
-                                    {{ $this->form->getComponent('site_invoice_signature') }}
+                                    <div wire:key="site_invoice_signature-wrapper">
+                                        {{ $this->form->getComponent('site_invoice_signature') }}
+                                    </div>
                                 </div>
                                 <div class="col-md-4">
                                     <div class="card p-3 shadow-none border bg-light bg-opacity-25 rounded-3 h-100">
@@ -653,7 +663,9 @@
                                 <div class="col-12 mt-3">
                                     <label class="form-label fw-bold text-primary-emphasis mb-2">{{ __('Terms & Conditions (Rich Editor)') }}</label>
                                     <div class="border rounded-3 p-2 bg-white">
-                                        {{ $this->form->getComponent('site_invoice_terms') }}
+                                        <div wire:key="site_invoice_terms-wrapper">
+                                            {{ $this->form->getComponent('site_invoice_terms') }}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -829,7 +841,9 @@
                                 <div class="col-12 mt-3">
                                     <label class="form-label fw-bold text-primary-emphasis mb-2">{{ __('Capture logs for selected routers:') }}</label>
                                     <div class="p-2 border rounded-3 bg-white">
-                                        {{ $this->form->getComponent('log_server_routers') }}
+                                        <div wire:key="log_server_routers-wrapper">
+                                            {{ $this->form->getComponent('log_server_routers') }}
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="col-12 mt-2">
@@ -857,10 +871,6 @@
                                 <div class="col-md-6">
                                     <label class="form-label fw-semibold">{{ __('Action Button Link (URL)') }}</label>
                                     <input type="text" class="form-control rounded-3" wire:model="data.hero_button_link">
-                                </div>
-                                <div class="col-md-12 mt-3 card p-3 shadow-none border bg-light bg-opacity-25 rounded-3">
-                                    <label class="form-label fw-bold border-bottom pb-2">{{ __('Hero Slider Images (Dynamic Repeater)') }}</label>
-                                    {{ $this->form->getComponent('hero_slides') }}
                                 </div>
                             </div>
 
@@ -891,26 +901,6 @@
                                         <input class="form-check-input fs-5 cursor-pointer me-2" type="checkbox" role="switch" id="is_active" wire:model="data.is_active" value="1">
                                     </div>
                                 </div>
-                                <div class="col-md-12 mt-3 card p-3 shadow-none border bg-light bg-opacity-25 rounded-3">
-                                    <label class="form-label fw-bold border-bottom pb-2">{{ __('High-performance Services List') }}</label>
-                                    {{ $this->form->getComponent('services') }}
-                                </div>
-                                <div class="col-md-12 mt-3 card p-3 shadow-none border bg-light bg-opacity-25 rounded-3">
-                                    <label class="form-label fw-bold border-bottom pb-2">{{ __('Valuable Clients Partners Logotype') }}</label>
-                                    {{ $this->form->getComponent('valuable_clients') }}
-                                </div>
-                            </div>
-
-                            <h5 class="form-section-title text-primary fw-bold mt-5"><i class="bi bi-images me-2"></i>{{ __('Homepage Image Gallery') }}</h5>
-                            <div class="row g-3">
-                                <div class="col-md-12 card p-3 shadow-none border bg-light bg-opacity-25 rounded-3">
-                                    <label class="form-label fw-bold border-bottom pb-2">{{ __('Define Filter categories') }}</label>
-                                    {{ $this->form->getComponent('gallery_categories') }}
-                                </div>
-                                <div class="col-md-12 mt-3 card p-3 shadow-none border bg-light bg-opacity-25 rounded-3">
-                                    <label class="form-label fw-bold border-bottom pb-2">{{ __('Images Collection') }}</label>
-                                    {{ $this->form->getComponent('gallery_items') }}
-                                </div>
                             </div>
 
                             <h5 class="form-section-title text-primary fw-bold mt-5"><i class="bi bi-c-circle me-2"></i>{{ __('Footer Section Layout') }}</h5>
@@ -919,18 +909,15 @@
                                     <label class="form-label fw-semibold">{{ __('Copyright Footer Text') }}</label>
                                     <input type="text" class="form-control rounded-3" wire:model="data.footer_copyright" placeholder="{{ __('e.g. © 2024 Your Company name. All rights reserved.') }}">
                                 </div>
-                            </div>
-
-                            <h5 class="form-section-title text-primary fw-bold mt-5"><i class="bi bi-link-45deg me-2"></i>{{ __('Footer Navigation Links') }}</h5>
-                            <div class="row g-3">
                                 <div class="col-md-12">
-                                    <label class="form-label fw-semibold">{{ __('BTCL Tariff PDF URL') }}</label>
+                                    <label class="form-label fw-semibold">{{ __('BTCL Tariff Link (Manual URL)') }}</label>
                                     <input type="text" class="form-control rounded-3" wire:model="data.btcl_tariff_link" placeholder="{{ __('e.g. /pdf/btcl_tariff.pdf or #') }}">
                                 </div>
-                                <div class="col-md-12 mt-3 card p-3 shadow-none border bg-light bg-opacity-25 rounded-3">
-                                    <label class="form-label fw-bold border-bottom pb-2">{{ __('Useful & Important Links (Dynamic Repeater)') }}</label>
-                                    {{ $this->form->getComponent('important_links') }}
-                                </div>
+                            </div>
+
+                            {{-- Filament-managed repeaters & BTCL PDF upload - rendered as a full form for proper Alpine.js context --}}
+                            <div class="mt-4">
+                                {{ $this->contentForm }}
                             </div>
                         </div>
 

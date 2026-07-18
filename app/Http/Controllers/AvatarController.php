@@ -30,7 +30,15 @@ class AvatarController extends Controller
 
         // Save to local file
         $fileName = 'images/avatars/'.md5($name).'.png';
-        $image->save(public_path($fileName));
+        $savePath = public_path($fileName);
+
+        // Ensure the directory exists
+        $directory = dirname($savePath);
+        if (!is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        $image->save($savePath);
 
         // Return image URL
         return asset($fileName);

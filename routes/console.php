@@ -32,9 +32,13 @@ Schedule::call(function () {
     app(MikrotikSync::class)->allSync();
 })->daily()->timezone($timezone);
 
-Schedule::command('app:poll-router-logs')->everyMinute();
+Schedule::call(function () {
+    Artisan::call('app:poll-router-logs');
+})->everyMinute();
 
-Schedule::command('app:expire-realtime-hotspot-users')->everyFiveMinutes();
+Schedule::call(function () {
+    Artisan::call('app:expire-realtime-hotspot-users');
+})->everyMinute();
 
 Schedule::call(function () {
     $days = (int) MainSiteData::getValue('log_retention_days', 30);

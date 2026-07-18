@@ -90,6 +90,44 @@ class HotspotVoucher extends Model
     }
 
     /**
+     * Parse MikroTik uptime string (e.g. "6m", "00:06:00") to seconds.
+     */
+    public static function parseUptimeToSeconds(string $uptime): int
+    {
+        $uptime = trim($uptime);
+        if (empty($uptime) || $uptime === '0s') {
+            return 0;
+        }
+
+        // Format 1: hh:mm:ss or mm:ss
+        if (preg_match('/^(?:(\d+):)?(\d+):(\d+)$/', $uptime, $matches)) {
+            $hours = (int) ($matches[1] ?? 0);
+            $minutes = (int) $matches[2];
+            $seconds = (int) $matches[3];
+            return ($hours * 3600) + ($minutes * 60) + $seconds;
+        }
+
+        // Format 2: standard MikroTik duration like 1d12h30m5s
+        $seconds = 0;
+        if (preg_match_all('/(\d+)\s*(w|d|h|m|s)/i', $uptime, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $m) {
+                $val = (int) $m[1];
+                switch (strtolower($m[2])) {
+                    case 'w': $seconds += $val * 604800; break;
+                    case 'd': $seconds += $val * 86400; break;
+                    case 'h': $seconds += $val * 3600; break;
+                    case 'm': $seconds += $val * 60; break;
+                    case 's': $seconds += $val; break;
+                }
+            }
+            return $seconds;
+        }
+
+        return 0;
+    }
+
+
+    /**
      * Scope: realtime vouchers that have expired (first_login_at + duration < now).
      */
     public function scopeRealtimeExpired($query)
@@ -97,6 +135,6 @@ class HotspotVoucher extends Model
         return $query->where('validity_type', 'realtime')
             ->whereNotNull('first_login_at')
             ->whereNotNull('validity_duration')
-            ->where('status', '!=', 'expired');
+            ->where('status', 'used');
     }
 }

@@ -35,10 +35,13 @@ use Illuminate\Validation\ValidationException;
 use App\Rules\ValidPhoneDigits;
 use Livewire\Component;
 
+use Livewire\WithFileUploads;
+
 class MainSiteSetup extends Component implements HasActions, HasForms
 {
     use InteractsWithActions;
     use InteractsWithForms;
+    use WithFileUploads;
 
     public ?array $data = [];
 
@@ -175,12 +178,32 @@ class MainSiteSetup extends Component implements HasActions, HasForms
             ]),
             'valuable_clients' => MainSiteData::getValue('valuable_clients', []),
             'btcl_tariff_link' => MainSiteData::getValue('btcl_tariff_link', '#'),
+            'btcl_tariff_pdf' => MainSiteData::getValue('btcl_tariff_pdf'),
             'important_links' => MainSiteData::getValue('important_links', []),
             'all_data' => MainSiteData::all()->toArray(),
         ];
+        // Format single file uploads as arrays with a UUID key to satisfy Filament's FileUpload component
+        foreach ($this->getSingleFileUploadFields() as $field) {
+            if (isset($settings[$field])) {
+                $val = $settings[$field];
+                if (is_array($val)) {
+                    $val = array_values(array_filter($val))[0] ?? null;
+                }
+                $settings[$field] = $val ? [ (string) \Illuminate\Support\Str::uuid() => $val ] : [];
+            }
+        }
 
         $this->data = $settings;
         $this->form->fill($settings);
+        $this->contentForm->fill($settings);
+    }
+
+    protected function getForms(): array
+    {
+        return [
+            'form',
+            'contentForm',
+        ];
     }
 
     public function form(Schema $schema): Schema
@@ -218,6 +241,17 @@ class MainSiteSetup extends Component implements HasActions, HasForms
                 ->options(RouterList::pluck('router_name', 'router_name'))
                 ->label('Capture logs for:')
                 ->searchable(),
+        ])->statePath('data');
+    }
+
+    public function contentForm(Schema $schema): Schema
+    {
+        return $schema->components([
+            FileUpload::make('btcl_tariff_pdf')
+                ->label('BTCL Tariff PDF')
+                ->acceptedFileTypes(['application/pdf'])
+                ->directory('documents')
+                ->helperText('Upload the BTCL Tariff PDF document.'),
             Repeater::make('hero_slides')
                 ->label('Hero Slider Images')
                 ->schema([
@@ -320,11 +354,21 @@ class MainSiteSetup extends Component implements HasActions, HasForms
         $oldLocale = MainSiteData::getValue('site_locale', 'en');
         try {
             $state = $this->form->getState();
-            Log::debug('MainSiteSetup save state: '.json_encode([
-                'payment_bkash_enabled' => $this->data['payment_bkash_enabled'] ?? 'not_in_state',
-                'payment_nagad_enabled' => $this->data['payment_nagad_enabled'] ?? 'not_in_state',
-                'payment_sslcommerz_enabled' => $this->data['payment_sslcommerz_enabled'] ?? 'not_in_state',
-            ]));
+            $contentState = $this->contentForm->getState();
+
+            // After getState() processes uploads (saves files to disk), $this->data may contain
+            // multiple entries for single-file fields: old path(s) + the newly saved path.
+            // Extract the LAST string path (newest file) from $this->data for each field.
+            foreach ($this->getSingleFileUploadFields() as $field) {
+                $val = $this->data[$field] ?? null;
+                if (is_array($val)) {
+                    // Filter to only string values (skip any leftover TemporaryUploadedFile objects)
+                    $paths = array_filter($val, 'is_string');
+                    // Take the last entry which is the most recently saved file
+                    $this->data[$field] = $paths ? end($paths) : null;
+                }
+                // If it's already a string, leave it as-is
+            }
         } catch (ValidationException $e) {
             Log::error('MainSiteSetup validation failed: '.json_encode($e->errors()));
             flash()->error('Validation failed: '.implode(', ', Arr::flatten($e->errors())));
@@ -339,6 +383,8 @@ class MainSiteSetup extends Component implements HasActions, HasForms
             'data.site_phone'  => ['nullable', 'string', new ValidPhoneDigits],
             'data.site_whatsapp'  => ['nullable', 'string', new ValidPhoneDigits],
         ]);
+
+        $singleFileFields = $this->getSingleFileUploadFields();
 
         // All keys from both migrations
         $keys = [
@@ -356,7 +402,7 @@ class MainSiteSetup extends Component implements HasActions, HasForms
             'hero_title', 'hero_subtitle', 'hero_button_text', 'hero_button_link', 'registration_link',
             'about_title', 'about_body', 'packages_section_title', 'testimonial_title', 'footer_copyright', 'is_active',
             'hero_slides', 'services', 'testimonials', 'gallery_items', 'gallery_categories', 'valuable_clients',
-            'btcl_tariff_link', 'important_links',
+            'btcl_tariff_link', 'btcl_tariff_pdf', 'important_links',
             'payment_bkash_enabled', 'payment_bkash_base_url', 'payment_bkash_username', 'payment_bkash_password', 'payment_bkash_app_key', 'payment_bkash_app_secret',
             'payment_nagad_enabled', 'payment_nagad_base_url', 'payment_nagad_merchant_id', 'payment_nagad_public_key', 'payment_nagad_private_key',
             'payment_sslcommerz_enabled', 'payment_sslcommerz_store_id', 'payment_sslcommerz_store_password', 'payment_sslcommerz_sandbox',
@@ -369,7 +415,12 @@ class MainSiteSetup extends Component implements HasActions, HasForms
         try {
             foreach ($keys as $key) {
                 if (array_key_exists($key, $this->data)) {
-                    MainSiteData::setValue($key, $this->data[$key]);
+                    $value = $this->data[$key];
+                    // If it is a single file upload field, save only the filepath string to the DB
+                    if (in_array($key, $singleFileFields) && is_array($value)) {
+                        $value = array_values(array_filter($value))[0] ?? null;
+                    }
+                    MainSiteData::setValue($key, $value);
                 }
             }
 
@@ -382,7 +433,11 @@ class MainSiteSetup extends Component implements HasActions, HasForms
                     if (in_array($item['type'], $keys)) {
                         continue;
                     }
-                    MainSiteData::setValue($item['type'], $item['value']);
+                    $value = $item['value'];
+                    if (in_array($item['type'], $singleFileFields) && is_array($value)) {
+                        $value = array_values(array_filter($value))[0] ?? null;
+                    }
+                    MainSiteData::setValue($item['type'], $value);
                 }
             }
 
@@ -867,6 +922,21 @@ class MainSiteSetup extends Component implements HasActions, HasForms
                 $this->data[$key] = $value;
             }
         }
+    }
+
+    protected function getSingleFileUploadFields(): array
+    {
+        $fields = [];
+        foreach ($this->getCachedSchemas() as $schema) {
+            foreach ($schema->getFlatComponents() as $component) {
+                if ($component instanceof \Filament\Forms\Components\FileUpload) {
+                    if (! $component->isMultiple()) {
+                        $fields[] = $component->getName();
+                    }
+                }
+            }
+        }
+        return array_unique($fields);
     }
 
     public function render()

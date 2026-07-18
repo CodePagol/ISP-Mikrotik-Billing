@@ -5,10 +5,10 @@
 @endphp
 
 <div class="flex items-center">
-    @if ($logo && file_exists(public_path($logo)))
-        <img src="{{ asset($logo) }}" style="width: 190px; height: 53px;" alt="Logo">
+    @if ($logo)
+        <img src="{{ site_image($logo) }}" style="width: 190px; height: 53px;" alt="Logo">
     @elseif ($icon)
-        <img src="{{ asset($icon) }}" style="width: 190px; height: 53px;" alt="Icon">
+        <img src="{{ site_image($icon) }}" style="width: 190px; height: 53px;" alt="Icon">
         <span class="ml-2 font-bold text-xl">{{ $name }}</span>
     @else
         <span class="font-bold text-xl text-primary-600">{{ $name }}</span>

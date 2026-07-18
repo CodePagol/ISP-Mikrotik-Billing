@@ -1,78 +1,5 @@
-<?php
-
-use Livewire\Component;
-use Livewire\Attributes\On;
-use Livewire\Attributes\Computed;
-use App\Models\AddressField;
-use App\Models\PackagePurchaseRequest;
-use App\Rules\ValidPhoneDigits;
-
-new class extends Component {
-    public $name = '';
-    public $phone = '';
-    public $email = '';
-    public $address = '';
-    public $notes = '';
-    public $packageName = '';
-    public $price = 0;
-
-    public $showModal = false;
-
-    #[On('open-purchase-modal')]
-    public function openModal($packageName, $price)
-    {
-        $this->packageName = $packageName;
-        $this->price = $price;
-        $this->showModal = true;
-    }
-
-    public function closeModal()
-    {
-        $this->showModal = false;
-        $this->reset(['name', 'phone', 'email', 'address', 'notes']);
-    }
-
-    public function submitRequest()
-    {
-        $this->validate([
-            'name' => 'required|string|max:255',
-            'phone' => ['required', 'string', new ValidPhoneDigits],
-            'email' => 'nullable|email|max:255',
-            'address' => 'required|string|max:1000',
-            'notes' => 'nullable|string|max:1000',
-        ]);
-
-        $isRejected = PackagePurchaseRequest::where('status', 'rejected')
-            ->where(function ($q) {
-                $q->where('phone', $this->phone);
-                if ($this->email) {
-                    $q->orWhere('email', $this->email);
-                }
-            })
-            ->exists();
-
-        if (!$isRejected) {
-            PackagePurchaseRequest::create([
-                'name' => $this->name,
-                'phone' => $this->phone,
-                'email' => $this->email,
-                'address' => $this->address,
-                'package_name' => $this->packageName,
-                'price' => $this->price,
-                'status' => 'pending',
-                'ip_address' => request()->ip(),
-                'notes' => $this->notes,
-            ]);
-        }
-
-        $this->closeModal();
-
-        sweetalert()->success('Thanks for choosing us. Your Application submitted successfully! Our representative will contact you soon.');
-    }
-};
-?>
-
 <div>
+
     @if ($showModal)
         <div class="modal fade show"
             style="display: block; background: rgba(9, 13, 22, 0.85); backdrop-filter: blur(16px); z-index: 1055;"
@@ -95,11 +22,11 @@ new class extends Component {
                                 style="border: 1px solid var(--glass-border);">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
-                                        <small class= d-block text-uppercase fs-11">Selected Package</small>
+                                        <small class="d-block text-uppercase fs-11">Selected Package</small>
                                         <strong class="fs-6">{{ $packageName }}</strong>
                                     </div>
                                     <div class="text-end">
-                                        <small class= d-block text-uppercase fs-11">Price</small>
+                                        <small class="d-block text-uppercase fs-11">Price</small>
                                         <strong class="fs-6 text-success">{{ number_format($price, 0) }} ৳ /
                                             Month</strong>
                                     </div>
