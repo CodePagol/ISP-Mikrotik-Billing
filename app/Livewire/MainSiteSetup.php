@@ -142,6 +142,7 @@ class MainSiteSetup extends Component implements HasActions, HasForms
             'payment_bkash_password' => MainSiteData::getValue('payment_bkash_password'),
             'payment_bkash_app_key' => MainSiteData::getValue('payment_bkash_app_key'),
             'payment_bkash_app_secret' => MainSiteData::getValue('payment_bkash_app_secret'),
+            'payment_bkash_api_type' => MainSiteData::getValue('payment_bkash_api_type', 'tokenized'),
 
             'payment_nagad_enabled' => MainSiteData::getValue('payment_nagad_enabled', 0) ? 1 : 0,
             'payment_nagad_base_url' => MainSiteData::getValue('payment_nagad_base_url', 'http://sandbox.nagad.com.bd:10080/remote-payment-gateway-1.0/api/dfs'),
@@ -403,7 +404,7 @@ class MainSiteSetup extends Component implements HasActions, HasForms
             'about_title', 'about_body', 'packages_section_title', 'testimonial_title', 'footer_copyright', 'is_active',
             'hero_slides', 'services', 'testimonials', 'gallery_items', 'gallery_categories', 'valuable_clients',
             'btcl_tariff_link', 'btcl_tariff_pdf', 'important_links',
-            'payment_bkash_enabled', 'payment_bkash_base_url', 'payment_bkash_username', 'payment_bkash_password', 'payment_bkash_app_key', 'payment_bkash_app_secret',
+            'payment_bkash_enabled', 'payment_bkash_base_url', 'payment_bkash_username', 'payment_bkash_password', 'payment_bkash_app_key', 'payment_bkash_app_secret', 'payment_bkash_api_type',
             'payment_nagad_enabled', 'payment_nagad_base_url', 'payment_nagad_merchant_id', 'payment_nagad_public_key', 'payment_nagad_private_key',
             'payment_sslcommerz_enabled', 'payment_sslcommerz_store_id', 'payment_sslcommerz_store_password', 'payment_sslcommerz_sandbox',
             'theme_preset', 'theme_name', 'theme_primary_color', 'theme_accent_color', 'theme_card_style',

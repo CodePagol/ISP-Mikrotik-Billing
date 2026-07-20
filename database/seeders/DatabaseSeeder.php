@@ -42,6 +42,7 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             SuperAdminSeeder::class,
             ResellerModuleSeeder::class,
+            SmsTemplateSeeder::class,
             // DefaultSettingsTableSeeder::class,
             // ProductSeeder::class,
         ]);

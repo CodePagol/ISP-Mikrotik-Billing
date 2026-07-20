@@ -694,6 +694,13 @@
                                         <label class="form-label fw-semibold">{{ __('bKash Endpoint base URL') }}</label>
                                         <input type="text" class="form-control rounded-3" wire:model="data.payment_bkash_base_url">
                                     </div>
+                                    <div class="col-12">
+                                        <label class="form-label fw-semibold">{{ __('bKash API Type') }}</label>
+                                        <select class="form-select rounded-3" wire:model="data.payment_bkash_api_type">
+                                            <option value="tokenized">Tokenized Checkout (Latest/Recommended)</option>
+                                            <option value="pgw">Regular Merchant PGW (Checkout)</option>
+                                        </select>
+                                    </div>
                                     <div class="col-md-6">
                                         <label class="form-label fw-semibold">{{ __('bKash Merchant Username') }}</label>
                                         <input type="text" class="form-control rounded-3" wire:model="data.payment_bkash_username">

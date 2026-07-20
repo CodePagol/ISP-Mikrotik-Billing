@@ -32,9 +32,14 @@ class BkashPaymentController extends Controller
     private function generateToken()
     {
         $config = $this->getBkashConfig();
+        $apiType = siteUrlSettings('payment_bkash_api_type') ?: 'tokenized';
+
+        $tokenUrl = ($apiType === 'tokenized') 
+            ? $config['base_url'].'/tokenized/checkout/token/grant'
+            : $config['base_url'].'/checkout/token/grant';
 
         $response = Http::withBasicAuth($config['username'], $config['password'])
-            ->post($config['base_url'].'/tokenized/checkout/token/grant', [
+            ->post($tokenUrl, [
                 'app_key' => $config['app_key'],
                 'app_secret' => $config['app_secret'],
             ]);
@@ -75,21 +80,36 @@ class BkashPaymentController extends Controller
         try {
             $idToken = $this->generateToken();
             $config = $this->getBkashConfig();
+            $apiType = siteUrlSettings('payment_bkash_api_type') ?: 'tokenized';
 
             $callbackURL = route('payment.bkash.callback');
 
-            $payment = Http::withToken($idToken)
-                ->withHeaders([
-                    'X-App-Key' => $config['app_key'],
-                ])
-                ->post($config['base_url'].'/tokenized/checkout/create', [
+            if ($apiType === 'tokenized') {
+                $createUrl = $config['base_url'].'/tokenized/checkout/create';
+                $payload = [
                     'mode' => '0011',
                     'payerReference' => $customer->customer_unique_id,
                     'callbackURL' => $callbackURL,
                     'amount' => (string) round($amount, 2),
                     'merchantInvoiceNumber' => 'INV_'.uniqid(),
                     'intent' => 'sale',
-                ]);
+                ];
+            } else {
+                $createUrl = $config['base_url'].'/checkout/payment/create';
+                $payload = [
+                    'amount' => (string) round($amount, 2),
+                    'currency' => 'BDT',
+                    'intent' => 'sale',
+                    'merchantInvoiceNumber' => 'INV_'.uniqid(),
+                    'callbackURL' => $callbackURL,
+                ];
+            }
+
+            $payment = Http::withToken($idToken)
+                ->withHeaders([
+                    'X-App-Key' => $config['app_key'],
+                ])
+                ->post($createUrl, $payload);
 
             $res = $payment->json();
 
@@ -130,12 +150,17 @@ class BkashPaymentController extends Controller
             try {
                 $idToken = $this->generateToken();
                 $config = $this->getBkashConfig();
+                $apiType = siteUrlSettings('payment_bkash_api_type') ?: 'tokenized';
+
+                $executeUrl = ($apiType === 'tokenized')
+                    ? $config['base_url'].'/tokenized/checkout/execute'
+                    : $config['base_url'].'/checkout/payment/execute';
 
                 $execution = Http::withToken($idToken)
                     ->withHeaders([
                         'X-App-Key' => $config['app_key'],
                     ])
-                    ->post($config['base_url'].'/tokenized/checkout/execute', [
+                    ->post($executeUrl, [
                         'paymentID' => $paymentID,
                     ]);
 
@@ -144,9 +169,21 @@ class BkashPaymentController extends Controller
                 if (isset($res['statusCode']) && $res['statusCode'] === '0000') {
                     $trxID = $res['trxID'] ?? 'BKASH_'.uniqid();
                     $amount = (float) $res['amount'];
-                    $customerUniqueId = $res['payerReference'];
+                    
+                    // Search customer by payerReference or session fallback
+                    $customerUniqueId = $res['payerReference'] ?? null;
+                    $customer = null;
+                    if ($customerUniqueId) {
+                        $customer = CustomersInfo::where('customer_unique_id', $customerUniqueId)->first();
+                    }
 
-                    $customer = CustomersInfo::where('customer_unique_id', $customerUniqueId)->first();
+                    if (! $customer) {
+                        $sessionCustomerId = session('bkash_customer_id');
+                        if ($sessionCustomerId) {
+                            $customer = CustomersInfo::find($sessionCustomerId);
+                        }
+                    }
+
                     if ($customer) {
                         $this->paymentService->processSuccessPayment($customer, $amount, 'bkash', $trxID);
 
