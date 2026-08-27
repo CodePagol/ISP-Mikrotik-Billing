@@ -55,6 +55,154 @@ class ScheduledTasksController extends Controller
     //     }
     // }
 
+    /**
+     * Generate bill for customer activation.
+     * - For 'disable' customers: generates any missed months' bills (PaymentSummary) and carries forward due.
+     * - For both 'inactive' and 'disable' customers: generates current month's bill if not already generated.
+     * - Resets BillingInfo (paid_amount=0, total_amount, due_amount) ONLY if a new bill was generated.
+     * - If bill was already generated previously, BillingInfo is NOT reset.
+     *
+     * @param  string  $customerUniqueId
+     * @return bool True if a new bill was generated and BillingInfo was reset, false otherwise.
+     */
+    public static function generateBillForActivation(string $customerUniqueId): bool
+    {
+        $billing = BillingInfo::where('customer_bill_unique_id', $customerUniqueId)->first();
+        if (! $billing) {
+            return false;
+        }
+
+        $customer = CustomersInfo::where('customer_unique_id', $customerUniqueId)->first();
+        if (! $customer || $customer->status === 'free') {
+            return false;
+        }
+
+        $currentMonthStart = Carbon::now()->startOfMonth();
+        $currentMonthStr = $currentMonthStart->format('Y-m-d');
+
+        $carryOverDue = (float) $billing->previous_due;
+        $carryOverAdvance = (float) $billing->advance;
+        $anyBillGenerated = false;
+
+        // 1. For temporarily disabled users, back-fill any missed months between last bill and current month
+        if ($customer->status === 'disable') {
+            $lastSummary = PaymentSummary::where('customer_payment_unique_id', $customerUniqueId)
+                ->orderBy('summary_date', 'desc')
+                ->first();
+
+            if ($lastSummary) {
+                $lastDate = Carbon::parse($lastSummary->summary_date)->startOfMonth();
+
+                if ($lastDate->lt($currentMonthStart)) {
+                    $lastMonthlyTotal = $lastSummary->monthly_rent + $lastSummary->additional_charge + $lastSummary->vat + $lastSummary->previous_due;
+                    $lastDiscounted = $lastMonthlyTotal - $lastSummary->discount - $lastSummary->advance;
+
+                    $lastMonthCollections = CollectionSummary::where('customer_collection_unique_id', $customerUniqueId)
+                        ->whereMonth('collection_date', $lastDate->month)
+                        ->whereYear('collection_date', $lastDate->year)
+                        ->sum('collection_amount');
+
+                    $remainingFromLast = $lastDiscounted - $lastMonthCollections;
+                    if ($remainingFromLast > 0) {
+                        $carryOverDue = $remainingFromLast;
+                        $carryOverAdvance = 0.00;
+                    } elseif ($remainingFromLast < 0) {
+                        $carryOverDue = 0.00;
+                        $carryOverAdvance = abs($remainingFromLast);
+                    } else {
+                        $carryOverDue = 0.00;
+                        $carryOverAdvance = 0.00;
+                    }
+
+                    $monthCursor = $lastDate->copy()->addMonth();
+                    while ($monthCursor->lt($currentMonthStart)) {
+                        $mDateStr = $monthCursor->format('Y-m-d');
+                        $exists = PaymentSummary::where('customer_payment_unique_id', $customerUniqueId)
+                            ->where('summary_date', $mDateStr)
+                            ->exists();
+
+                        if (! $exists) {
+                            PaymentSummary::create([
+                                'customer_payment_unique_id' => $customerUniqueId,
+                                'summary_date' => $mDateStr,
+                                'monthly_rent' => $billing->monthly_rent,
+                                'additional_charge' => $billing->additional_charge,
+                                'vat' => $billing->vat,
+                                'discount' => 0.00,
+                                'previous_due' => $carryOverDue,
+                                'advance' => $carryOverAdvance,
+                            ]);
+
+                            $anyBillGenerated = true;
+
+                            $thisMonthTotal = $billing->monthly_rent + $billing->additional_charge + $billing->vat + $carryOverDue;
+                            $thisMonthNet = $thisMonthTotal - $carryOverAdvance;
+
+                            if ($thisMonthNet > 0) {
+                                $carryOverDue = $thisMonthNet;
+                                $carryOverAdvance = 0.00;
+                            } elseif ($thisMonthNet < 0) {
+                                $carryOverDue = 0.00;
+                                $carryOverAdvance = abs($thisMonthNet);
+                            } else {
+                                $carryOverDue = 0.00;
+                                $carryOverAdvance = 0.00;
+                            }
+                        }
+
+                        $monthCursor->addMonth();
+                    }
+                }
+            }
+        }
+
+        // 2. Check if current month's bill already exists
+        $currentSummaryExists = PaymentSummary::where('customer_payment_unique_id', $customerUniqueId)
+            ->where('summary_date', $currentMonthStr)
+            ->exists();
+
+        // "eta sudo bill generate korlei reset hbe, jodi age bill create hoye thake tahole reset hbe nh"
+        if (! $currentSummaryExists) {
+            PaymentSummary::create([
+                'customer_payment_unique_id' => $customerUniqueId,
+                'summary_date' => $currentMonthStr,
+                'monthly_rent' => $billing->monthly_rent,
+                'additional_charge' => $billing->additional_charge,
+                'vat' => $billing->vat,
+                'discount' => 0.00,
+                'previous_due' => $carryOverDue,
+                'advance' => $carryOverAdvance,
+            ]);
+
+            $monthlyBill = $billing->monthly_rent + $billing->additional_charge + $billing->vat;
+            $totalAmount = ($monthlyBill + $carryOverDue) - $carryOverAdvance;
+            $dueAmount = $totalAmount > 0 ? $totalAmount : 0.00;
+            $finalAdvance = $totalAmount < 0 ? abs($totalAmount) : 0.00;
+
+            // Reset BillingInfo ONLY when a new bill is generated for current month
+            $billing->update([
+                'paid_amount' => 0.00,
+                'advance' => $finalAdvance,
+                'discount' => 0.00,
+                'previous_due' => $carryOverDue,
+                'total_amount' => $totalAmount > 0 ? $totalAmount : 0.00,
+                'due_amount' => $dueAmount,
+            ]);
+
+            return true;
+        }
+
+        return $anyBillGenerated;
+    }
+
+    /**
+     * Backward-compatibility alias for generateBillForActivation.
+     */
+    public static function generateMissedBills(string $customerUniqueId): int
+    {
+        return self::generateBillForActivation($customerUniqueId) ? 1 : 0;
+    }
+
     public function createMonthlyBill()
     {
         BillingInfo::query()->cursor()->each(function ($billing) {

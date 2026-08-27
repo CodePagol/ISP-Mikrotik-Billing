@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Events\PackagePurchased;
+use App\Http\Controllers\ScheduledTasksController;
 use App\Http\Controllers\MikrotikController;
 use App\Http\Controllers\SMSController;
 use App\Models\BillingInfo;
@@ -39,6 +40,12 @@ class PaymentService
             }
             if (! $reseller && $customer->reseller_id) {
                 $reseller = $customer->reseller;
+            }
+
+            // If bill not yet generated for current month, generate it before calculating due and applying payment
+            $billGenerated = ScheduledTasksController::generateBillForActivation($customer->customer_unique_id);
+            if ($billGenerated) {
+                $billing->refresh();
             }
 
             $useProrated = $reseller ? (bool)$reseller->getSetting('use_prorated_validity', true) : true;

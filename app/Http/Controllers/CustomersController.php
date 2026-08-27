@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\BillingInfo;
+use App\Http\Controllers\ScheduledTasksController;
 use App\Models\CustomersInfo;
 use App\Models\PaymentSummary;
 use App\Models\PPPSecrets;
@@ -189,25 +190,13 @@ class CustomersController extends Controller
         try {
             \DB::beginTransaction();
 
-            // 1. If Payment Summary does not exist for this month, create it
-            $summaryExists = PaymentSummary::where('customer_payment_unique_id', $unique_id)
-                ->where('summary_date', Carbon::now()->firstOfMonth()->format('Y-m-d'))
-                ->exists();
-
-            if (! $summaryExists) {
-                PaymentSummary::create([
-                    'customer_payment_unique_id' => $unique_id,
-                    'summary_date' => Carbon::now()->firstOfMonth()->format('Y-m-d'),
-                    'monthly_rent' => $bill->monthly_rent,
-                    'additional_charge' => $bill->additional_charge,
-                    'vat' => $bill->vat,
-                    'previous_due' => $bill->previous_due,
-                    'advance' => $bill->advance,
-                    'discount' => $bill->discount,
-                ]);
+            // 0. Generate bill if not already generated, and reset BillingInfo only when newly generated
+            $billGenerated = ScheduledTasksController::generateBillForActivation($unique_id);
+            if ($billGenerated) {
+                $bill->refresh(); // Reload updated BillingInfo values
             }
 
-            // 2. Set customer status to active and reset disable_count
+            // 1. Set customer status to active and reset disable_count
             $customer->status = 'active';
             $customer->disable_count = 0;
             $customer->save();

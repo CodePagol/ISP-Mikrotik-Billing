@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Http\Controllers\MikrotikController;
+use App\Http\Controllers\ScheduledTasksController;
 use App\Models\BillingInfo;
 use App\Models\CustomersInfo;
 use App\Models\PaymentSummary;
@@ -319,21 +320,11 @@ class CustomerList extends Component
         try {
             \DB::beginTransaction();
 
-            $summaryExists = PaymentSummary::where('customer_payment_unique_id', $unique_id)
-                ->where('summary_date', Carbon::now()->firstOfMonth()->format('Y-m-d'))
-                ->exists();
-
-            if (! $summaryExists) {
-                PaymentSummary::create([
-                    'customer_payment_unique_id' => $unique_id,
-                    'summary_date' => Carbon::now()->firstOfMonth()->format('Y-m-d'),
-                    'monthly_rent' => $bill->monthly_rent,
-                    'additional_charge' => $bill->additional_charge,
-                    'vat' => $bill->vat,
-                    'previous_due' => $bill->previous_due,
-                    'advance' => $bill->advance,
-                    'discount' => $bill->discount,
-                ]);
+            // Generate bill if not already generated, and reset BillingInfo only when newly generated
+            $billGenerated = ScheduledTasksController::generateBillForActivation($unique_id);
+            if ($billGenerated) {
+                $bill->refresh();
+                flash()->addInfo('Customer bill generated successfully.');
             }
 
             $customer = CustomersInfo::where('customer_unique_id', $unique_id)->with('pppUser')->first();
@@ -347,6 +338,7 @@ class CustomerList extends Component
             }
 
             $customer->status = 'active';
+            $customer->disable_count = 0;
             $customer->save();
 
             if ($bill->auto_disable_date) {

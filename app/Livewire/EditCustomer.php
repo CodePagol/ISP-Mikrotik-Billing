@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Http\Controllers\MikrotikController;
+use App\Http\Controllers\ScheduledTasksController;
 use App\Models\AddressField;
 use App\Models\BillingInfo;
 use App\Models\CustomersAddress;
@@ -851,6 +852,9 @@ class EditCustomer extends Component
 
                         if ($customer->ppp_user_id != null && $customer->pppUser) {
                             if ($value == 'active') {
+                                // Generate bill if not already generated, and reset BillingInfo only when newly generated
+                                ScheduledTasksController::generateBillForActivation(decrypt($this->customerId));
+
                                 app(MikrotikController::class)->enablePPPSecret(decrypt($this->customerId), $customer->pppUser->router_name, $customer->pppUser->username);
 
                                 app(MikrotikController::class)->updatePPPSecret(
@@ -877,6 +881,9 @@ class EditCustomer extends Component
                         }
 
                         $customer->$attribute = $value;
+                        if ($value === 'active') {
+                            $customer->disable_count = 0;
+                        }
                         $customer->save();
                         data_set($this->fields, $field, $value); // Update the specific field in the 'customer'
 
