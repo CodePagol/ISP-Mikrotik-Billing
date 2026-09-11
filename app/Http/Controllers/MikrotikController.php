@@ -137,8 +137,17 @@ class MikrotikController extends Controller
                 }
 
                 // 5s SSH timeout as authoritative fallback
-                $response = $this->getPooledSshService($ip, $sshPort, $username, $password, 5)
-                    ->executeCommandParsable($sshCmd);
+                $ssh = $this->getPooledSshService($ip, $sshPort, $username, $password, 5);
+                try {
+                    $response = $ssh->executeCommandParsable($sshCmd);
+                } catch (\Exception $e) {
+                    if (str_contains($sshCmd, 'show-sensitive')) {
+                        $retryCmd = str_replace(' show-sensitive', '', $sshCmd);
+                        $response = $ssh->executeCommandParsable($retryCmd);
+                    } else {
+                        throw $e;
+                    }
+                }
 
                 // For WRITE commands, if the response is not empty, check if it contains a MikroTik error
                 if ($sshCmd && ! str_contains($sshCmd, 'print')) {
@@ -276,7 +285,15 @@ class MikrotikController extends Controller
                 try {
                     $ssh = $this->getPooledSshService($router->ip_address, $router->ssh_port, $router->username, $router->password, 5);
 
-                    return $ssh->executeCommandParsable($sshCmd);
+                    try {
+                        return $ssh->executeCommandParsable($sshCmd);
+                    } catch (\Exception $e) {
+                        if (str_contains($sshCmd, 'show-sensitive')) {
+                            $retryCmd = str_replace(' show-sensitive', '', $sshCmd);
+                            return $ssh->executeCommandParsable($retryCmd);
+                        }
+                        throw $e;
+                    }
                 } catch (\Exception $e) {
                     \Log::error("Mikrotik [{$routerName}] SSH Read Fail: ".$e->getMessage());
                     if ($showErrorFlash) {
@@ -485,7 +502,8 @@ class MikrotikController extends Controller
 
     public function getItems(string $routerName, string $path): array
     {
-        return $this->singleRead($routerName, "{$path}/print", ltrim($path, '/').' print without-paging terse');
+        $sensitive = (str_contains($path, 'secret') || str_contains($path, 'user')) ? ' show-sensitive' : '';
+        return $this->singleRead($routerName, "{$path}/print", ltrim($path, '/')." print without-paging terse{$sensitive}");
     }
 
     protected function removeByName(string $routerName, string $path, string $name): string
