@@ -338,7 +338,6 @@ class CustomerList extends Component
             }
 
             $customer->status = 'active';
-            $customer->disable_count = 0;
             $customer->save();
 
             if ($bill->auto_disable_date) {

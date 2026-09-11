@@ -881,9 +881,6 @@ class EditCustomer extends Component
                         }
 
                         $customer->$attribute = $value;
-                        if ($value === 'active') {
-                            $customer->disable_count = 0;
-                        }
                         $customer->save();
                         data_set($this->fields, $field, $value); // Update the specific field in the 'customer'
 

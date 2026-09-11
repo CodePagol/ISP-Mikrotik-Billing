@@ -221,9 +221,10 @@ class ScheduledTasksController extends Controller
 
             // Active customers always get a bill.
             // Non-active customers only get a bill if continue_bill is enabled in official info.
+            $shouldGenerateBill = true;
             if ($customer->status !== 'active') {
                 if (! $customer->official || ! $customer->official->continue_bill) {
-                    return;
+                    $shouldGenerateBill = false;
                 }
             }
 
@@ -259,46 +260,59 @@ class ScheduledTasksController extends Controller
             $customer->update([
                 'disable_count' => 0,
             ]);
-            if (! $existingPayment) {
-                if ($customer->status == 'free') {
-                    PaymentSummary::create([
-                        'customer_payment_unique_id' => $billing->customer_bill_unique_id,
-                        'summary_date' => $nextMonthStart,
-                        'monthly_rent' => 0.00,
-                        'additional_charge' => 0.00,
-                        'vat' => 0.00,
-                        'discount' => 0.00,
-                        'previous_due' => 0.00,
-                        'advance' => 0.00,
-                    ]);
-                    // Update BillingInfo with new values
-                    BillingInfo::where('customer_bill_unique_id', $billing->customer_bill_unique_id)
-                        ->update([
-                            'paid_amount' => 0.00,
-                        ]);
-                } else {
-                    // Create new PaymentSummary for the next month
-                    PaymentSummary::create([
-                        'customer_payment_unique_id' => $billing->customer_bill_unique_id,
-                        'summary_date' => $nextMonthStart,
-                        'monthly_rent' => $billing->monthly_rent,
-                        'additional_charge' => $billing->additional_charge,
-                        'vat' => $billing->vat,
-                        'discount' => $billing->discount,
-                        'previous_due' => $due_amount,
-                        'advance' => $advance,
-                    ]);
-                    // Update BillingInfo with new values
-                    BillingInfo::where('customer_bill_unique_id', $billing->customer_bill_unique_id)
-                        ->update([
-                            'paid_amount' => 0.00,
-                            'advance' => $advance,
+            if ($shouldGenerateBill) {
+                if (! $existingPayment) {
+                    if ($customer->status == 'free') {
+                        PaymentSummary::create([
+                            'customer_payment_unique_id' => $billing->customer_bill_unique_id,
+                            'summary_date' => $nextMonthStart,
+                            'monthly_rent' => 0.00,
+                            'additional_charge' => 0.00,
+                            'vat' => 0.00,
                             'discount' => 0.00,
-                            'previous_due' => $due_amount,
-                            'total_amount' => $nextMonthBill,
-                            'due_amount' => $nextMonthBill,
+                            'previous_due' => 0.00,
+                            'advance' => 0.00,
                         ]);
+                        // Update BillingInfo with new values
+                        BillingInfo::where('customer_bill_unique_id', $billing->customer_bill_unique_id)
+                            ->update([
+                                'paid_amount' => 0.00,
+                            ]);
+                    } else {
+                        // Create new PaymentSummary for the next month
+                        PaymentSummary::create([
+                            'customer_payment_unique_id' => $billing->customer_bill_unique_id,
+                            'summary_date' => $nextMonthStart,
+                            'monthly_rent' => $billing->monthly_rent,
+                            'additional_charge' => $billing->additional_charge,
+                            'vat' => $billing->vat,
+                            'discount' => $billing->discount,
+                            'previous_due' => $due_amount,
+                            'advance' => $advance,
+                        ]);
+                        // Update BillingInfo with new values
+                        BillingInfo::where('customer_bill_unique_id', $billing->customer_bill_unique_id)
+                            ->update([
+                                'paid_amount' => 0.00,
+                                'advance' => $advance,
+                                'discount' => 0.00,
+                                'previous_due' => $due_amount,
+                                'total_amount' => $nextMonthBill,
+                                'due_amount' => $nextMonthBill,
+                            ]);
+                    }
                 }
+            } else {
+                // Inactive without continue_bill: Do NOT generate PaymentSummary, but reset BillingInfo based on remaining due/advance
+                BillingInfo::where('customer_bill_unique_id', $billing->customer_bill_unique_id)
+                    ->update([
+                        'paid_amount' => 0.00,
+                        'advance' => $advance,
+                        'discount' => 0.00,
+                        'previous_due' => $due_amount,
+                        'total_amount' => $due_amount,
+                        'due_amount' => $due_amount,
+                    ]);
             }
             // }
         });
@@ -476,7 +490,7 @@ class ScheduledTasksController extends Controller
 
                 // Parse the base auto_disable_date
                 $baseDate = Carbon::parse($billing->auto_disable_date, $tz);
-                
+
                 // If the auto_disable_date is in a past month/year, shift it to the current month & year
                 if ($baseDate->isPast() && ($baseDate->month !== now($tz)->month || $baseDate->year !== now($tz)->year)) {
                     $baseDate->month(now($tz)->month)->year(now($tz)->year);

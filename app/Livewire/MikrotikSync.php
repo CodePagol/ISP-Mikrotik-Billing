@@ -203,7 +203,11 @@ class MikrotikSync extends Component
                     $passwordToStore = $rawPassword;
 
                     if ($existingSecret) {
-                        if ($existingSecret->password === $rawPassword) {
+                        if (empty($rawPassword) && ! empty($existingSecret->password)) {
+                            // Safety guard: If Mikrotik returns blank/empty password (e.g. RouterOS v7 masking or sensitive policy missing),
+                            // preserve the existing valid password from database rather than wiping it out.
+                            $passwordToStore = $existingSecret->getRawOriginal('password');
+                        } elseif ($existingSecret->password === $rawPassword) {
                             // Password unchanged, keep the existing database (encrypted) value to avoid isDirty() triggering
                             $passwordToStore = $existingSecret->getRawOriginal('password');
                         } else {
@@ -331,7 +335,26 @@ class MikrotikSync extends Component
     {
         $routerList = RouterList::find($id);
         if ($routerList && $routerList->action === 'connected') {
-            $pppSecrets = app(MikrotikController::class)->routerList($routerList->router_name, '/ppp/secret/print', '/ppp secret print without-paging terse');
+            app(MikrotikController::class)->invalidateRouterCache($routerList->router_name);
+            $pppSecrets = app(MikrotikController::class)->routerList(
+                $routerList->router_name,
+                '/ppp/secret/print',
+                '/ppp secret print without-paging terse show-sensitive',
+                [],
+                false
+            );
+
+            // Fallback for RouterOS 6 if show-sensitive returned an error
+            $firstResult = $pppSecrets[$routerList->router_name] ?? null;
+            if (! is_array($firstResult) || (isset($firstResult['status']) && $firstResult['status'] === false)) {
+                app(MikrotikController::class)->invalidateRouterCache($routerList->router_name);
+                $pppSecrets = app(MikrotikController::class)->routerList(
+                    $routerList->router_name,
+                    '/ppp/secret/print',
+                    '/ppp secret print without-paging terse'
+                );
+            }
+
             if (is_array($pppSecrets)) {
                 $this->userSync($pppSecrets);
             } else {
@@ -344,7 +367,41 @@ class MikrotikSync extends Component
 
     public function allSync()
     {
-        $pppSecrets = app(MikrotikController::class)->routerList(null, '/ppp/secret/print', '/ppp secret print without-paging terse');
+        $routers = RouterList::where('action', 'connected')->get();
+        foreach ($routers as $r) {
+            app(MikrotikController::class)->invalidateRouterCache($r->router_name);
+        }
+
+        $pppSecrets = app(MikrotikController::class)->routerList(
+            null,
+            '/ppp/secret/print',
+            '/ppp secret print without-paging terse show-sensitive',
+            [],
+            false
+        );
+
+        // Fallback for any RouterOS 6 routers that failed with show-sensitive
+        $failedRouters = [];
+        foreach ($pppSecrets as $rName => $res) {
+            if (! is_array($res) || (isset($res['status']) && $res['status'] === false)) {
+                $failedRouters[] = $rName;
+            }
+        }
+
+        if (! empty($failedRouters)) {
+            foreach ($failedRouters as $rName) {
+                app(MikrotikController::class)->invalidateRouterCache($rName);
+                $retry = app(MikrotikController::class)->routerList(
+                    $rName,
+                    '/ppp/secret/print',
+                    '/ppp secret print without-paging terse'
+                );
+                if (isset($retry[$rName])) {
+                    $pppSecrets[$rName] = $retry[$rName];
+                }
+            }
+        }
+
         if (is_array($pppSecrets)) {
             $this->userSync($pppSecrets);
         } else {
