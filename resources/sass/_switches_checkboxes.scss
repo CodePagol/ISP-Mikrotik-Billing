@@ -1,0 +1,251 @@
+// =============================================================================
+// _switches_checkboxes.scss — Global Standardized Switches & Checkboxes
+// =============================================================================
+// Solves:
+// 1. Knob centering bug on :checked across the entire application (Tailwind/Bootstrap conflict)
+// 2. Mobile responsiveness (proper scaling, prevents oversized switches on small devices)
+// 3. Flex container and negative margin distortions (aligns cleanly in tables, modals, cards)
+// =============================================================================
+
+// ── Base Checkbox & Switch Container ─────────────────────────────────────────
+.form-check {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.5rem;
+    margin-bottom: 0.5rem;
+    gap: 0.625rem;
+    padding-left: 0;
+
+    .form-check-label {
+        cursor: pointer;
+        user-select: none;
+        line-height: 1.35;
+        margin-bottom: 0;
+        font-size: 0.875rem;
+        flex-grow: 1;
+    }
+}
+
+// ── Global Toggle Switch (.form-switch) ──────────────────────────────────────
+.form-switch {
+    padding-left: 0 !important;
+    display: inline-flex !important;
+    align-items: center;
+    gap: 0.625rem;
+
+    .form-check-input {
+        appearance: none !important;
+        -webkit-appearance: none !important;
+        width: 2.5rem !important;
+        min-width: 2.5rem !important;
+        max-width: 2.5rem !important;
+        height: 1.35rem !important;
+        margin: 0 !important;
+        float: none !important;
+        flex-shrink: 0 !important;
+        cursor: pointer !important;
+        border-radius: 2rem !important;
+        background-color: #cbd5e1 !important;
+        border: 1px solid #94a3b8 !important;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23ffffff'/%3e%3c/svg%3e") !important;
+        background-position: left 0.15rem center !important;
+        background-size: 1.05rem 1.05rem !important;
+        background-repeat: no-repeat !important;
+        transition: background-position 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+                    background-color 0.2s ease,
+                    border-color 0.2s ease,
+                    box-shadow 0.2s ease !important;
+        box-shadow: none !important;
+        outline: none !important;
+
+        // Checked State — Slides completely to the right edge (NOT center)
+        &:checked {
+            background-color: #00d27a !important;
+            border-color: #00d27a !important;
+            background-position: right 0.15rem center !important;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23ffffff'/%3e%3c/svg%3e") !important;
+        }
+
+        &:focus {
+            box-shadow: 0 0 0 3px rgba(0, 210, 122, 0.25) !important;
+        }
+
+        &:disabled {
+            opacity: 0.5 !important;
+            cursor: not-allowed !important;
+        }
+    }
+
+    // Medium Size Variant
+    &.form-switch-md .form-check-input {
+        width: 2.75rem !important;
+        min-width: 2.75rem !important;
+        max-width: 2.75rem !important;
+        height: 1.45rem !important;
+        background-size: 1.15rem 1.15rem !important;
+        background-position: left 0.15rem center !important;
+
+        &:checked {
+            background-position: right 0.15rem center !important;
+        }
+    }
+
+    // Large Size Variant
+    &.form-switch-lg .form-check-input,
+    .form-check-input.form-check-input-lg {
+        width: 3.1rem !important;
+        min-width: 3.1rem !important;
+        max-width: 3.1rem !important;
+        height: 1.6rem !important;
+        background-size: 1.25rem 1.25rem !important;
+        background-position: left 0.18rem center !important;
+
+        &:checked {
+            background-position: right 0.18rem center !important;
+        }
+    }
+
+    // Reverse orientation (label first, switch on right)
+    &.form-check-reverse {
+        flex-direction: row-reverse !important;
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    // Color Theme Overrides for Switch
+    .form-check-input.form-check-input-primary:checked {
+        background-color: #2c7be5 !important;
+        border-color: #2c7be5 !important;
+        &:focus { box-shadow: 0 0 0 3px rgba(44, 123, 229, 0.25) !important; }
+    }
+    .form-check-input.form-check-input-danger:checked {
+        background-color: #e63757 !important;
+        border-color: #e63757 !important;
+        &:focus { box-shadow: 0 0 0 3px rgba(230, 55, 87, 0.25) !important; }
+    }
+    .form-check-input.form-check-input-warning:checked {
+        background-color: #f5803e !important;
+        border-color: #f5803e !important;
+        &:focus { box-shadow: 0 0 0 3px rgba(245, 128, 62, 0.25) !important; }
+    }
+    .form-check-input.form-check-input-info:checked {
+        background-color: #27bcfd !important;
+        border-color: #27bcfd !important;
+        &:focus { box-shadow: 0 0 0 3px rgba(39, 188, 253, 0.25) !important; }
+    }
+
+    // ── Mobile Responsive Scaling ────────────────────────────────────────────
+    @media (max-width: 576px) {
+        gap: 0.5rem;
+
+        .form-check-input {
+            width: 2.3rem !important;
+            min-width: 2.3rem !important;
+            max-width: 2.3rem !important;
+            height: 1.25rem !important;
+            background-size: 0.95rem 0.95rem !important;
+            background-position: left 0.12rem center !important;
+
+            &:checked {
+                background-position: right 0.12rem center !important;
+            }
+        }
+
+        &.form-switch-md .form-check-input,
+        &.form-switch-lg .form-check-input,
+        .form-check-input.form-check-input-lg {
+            width: 2.5rem !important;
+            min-width: 2.5rem !important;
+            max-width: 2.5rem !important;
+            height: 1.35rem !important;
+            background-size: 1.05rem 1.05rem !important;
+            background-position: left 0.15rem center !important;
+
+            &:checked {
+                background-position: right 0.15rem center !important;
+            }
+        }
+    }
+}
+
+// ── Standard Checkboxes (.form-check without .form-switch) ────────────────────
+.form-check:not(.form-switch) {
+    .form-check-input[type="checkbox"],
+    input[type="checkbox"].form-check-input {
+        appearance: none !important;
+        -webkit-appearance: none !important;
+        width: 1.15rem !important;
+        min-width: 1.15rem !important;
+        max-width: 1.15rem !important;
+        height: 1.15rem !important;
+        margin: 0 !important;
+        float: none !important;
+        flex-shrink: 0 !important;
+        cursor: pointer !important;
+        border-radius: 0.25rem !important;
+        background-color: #ffffff !important;
+        border: 1.5px solid #cbd5e1 !important;
+        transition: background-color 0.15s ease,
+                    border-color 0.15s ease,
+                    box-shadow 0.15s ease !important;
+        box-shadow: none !important;
+        outline: none !important;
+
+        &:checked {
+            background-color: #2c7be5 !important;
+            border-color: #2c7be5 !important;
+            background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e") !important;
+            background-position: center !important;
+            background-size: 0.8rem 0.8rem !important;
+            background-repeat: no-repeat !important;
+        }
+
+        &:focus {
+            box-shadow: 0 0 0 3px rgba(44, 123, 229, 0.25) !important;
+        }
+
+        &:disabled {
+            opacity: 0.5 !important;
+            cursor: not-allowed !important;
+        }
+    }
+}
+
+// ── Flex container fixes (for d-flex, tables, card-headers, input-groups) ─────
+.d-flex.justify-content-between.align-items-center > .form-check,
+.d-flex.justify-content-between.align-items-center.form-check {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100%;
+}
+
+.input-group-text.form-check,
+.input-group-text .form-check-input {
+    margin: 0 !important;
+    float: none !important;
+}
+
+// ── Dark Mode Consistency ────────────────────────────────────────────────────
+[data-bs-theme="dark"],
+.dark {
+    .form-switch .form-check-input {
+        background-color: rgba(255, 255, 255, 0.18) !important;
+        border-color: rgba(255, 255, 255, 0.28) !important;
+
+        &:checked {
+            background-color: #00d27a !important;
+            border-color: #00d27a !important;
+        }
+    }
+
+    .form-check:not(.form-switch) .form-check-input[type="checkbox"] {
+        background-color: rgba(255, 255, 255, 0.08) !important;
+        border-color: rgba(255, 255, 255, 0.22) !important;
+
+        &:checked {
+            background-color: #2c7be5 !important;
+            border-color: #2c7be5 !important;
+        }
+    }
+}

@@ -144,6 +144,32 @@
 
         </ul>
     @else
+        @php
+            $allPluginNavItems = \App\Support\Hooks::applyFilters('sidebar.nav.items', []);
+            $subItemsByParent = [];
+            $sectionItems = [];
+
+            foreach ($allPluginNavItems as $navEntry) {
+                // Permission check
+                if (!empty($navEntry['permission']) && !auth()->user()->can($navEntry['permission'])) {
+                    continue;
+                }
+                // Role check
+                if (!empty($navEntry['roles'])) {
+                    $allowedRoles = (array) $navEntry['roles'];
+                    if (!in_array('*', $allowedRoles) && !auth()->user()->hasAnyRole($allowedRoles)) {
+                        continue;
+                    }
+                }
+
+                if (!empty($navEntry['parent'])) {
+                    $subItemsByParent[strtolower($navEntry['parent'])][] = $navEntry;
+                } else {
+                    $sec = $navEntry['section'] ?? __('Plugin Extensions');
+                    $sectionItems[$sec][] = $navEntry;
+                }
+            }
+        @endphp
         <ul class="navbar-nav flex-column mb-3" id="navbarVerticalNav">
             <li class="nav-item">
                 <!-- label-->
@@ -242,6 +268,26 @@
                             <div class="d-flex align-items-center"><span class="nav-link-text ps-1">{{ __('Backup & Restore') }}</span><span
                                     class="badge rounded-pill ms-2 badge-subtle-primary">{{ __('Admin') }}</span></div>
                         </a></li>
+                    @if (!empty($subItemsByParent['mikrotik']))
+                        @foreach ($subItemsByParent['mikrotik'] as $sItem)
+                            @php
+                                $sUrl = isset($sItem['route']) && \Illuminate\Support\Facades\Route::has($sItem['route']) ? route($sItem['route']) : ($sItem['url'] ?? '#');
+                            @endphp
+                            <li class="nav-item">
+                                <a wire:navigate.hover wire:current="active" class="nav-link" href="{{ $sUrl }}">
+                                    <div class="d-flex align-items-center">
+                                        @if(!empty($sItem['icon']))
+                                            <i class="{{ $sItem['icon'] }} me-1.5 fs-10"></i>
+                                        @endif
+                                        <span class="nav-link-text ps-1">{{ __($sItem['title'] ?? '') }}</span>
+                                        @if (!empty($sItem['badge']))
+                                            <span class="badge rounded-pill ms-auto badge-subtle-primary">{{ $sItem['badge'] }}</span>
+                                        @endif
+                                    </div>
+                                </a>
+                            </li>
+                        @endforeach
+                    @endif
                 </ul>
 
                 <!-- Hotspot (Unified) -->
@@ -315,6 +361,26 @@
                             <div class="d-flex align-items-center"><span class="nav-link-text ps-1">{{ __('Payment Invoice') }}</span></div>
                         </a>
                     </li>
+                    @if (!empty($subItemsByParent['collections']) || !empty($subItemsByParent['billing']))
+                        @foreach (array_merge($subItemsByParent['collections'] ?? [], $subItemsByParent['billing'] ?? []) as $sItem)
+                            @php
+                                $sUrl = isset($sItem['route']) && \Illuminate\Support\Facades\Route::has($sItem['route']) ? route($sItem['route']) : ($sItem['url'] ?? '#');
+                            @endphp
+                            <li class="nav-item">
+                                <a wire:navigate.hover wire:current="active" class="nav-link" href="{{ $sUrl }}">
+                                    <div class="d-flex align-items-center">
+                                        @if(!empty($sItem['icon']))
+                                            <i class="{{ $sItem['icon'] }} me-1.5 fs-10"></i>
+                                        @endif
+                                        <span class="nav-link-text ps-1">{{ __($sItem['title'] ?? '') }}</span>
+                                        @if (!empty($sItem['badge']))
+                                            <span class="badge rounded-pill ms-auto badge-subtle-primary">{{ $sItem['badge'] }}</span>
+                                        @endif
+                                    </div>
+                                </a>
+                            </li>
+                        @endforeach
+                    @endif
                 </ul>
             </li>
             <li class="nav-item">
@@ -509,8 +575,98 @@
                             </div>
                         </a>
                     </li>
+                    @if (!empty($subItemsByParent['sms']))
+                        @foreach ($subItemsByParent['sms'] as $sItem)
+                            @php
+                                $sUrl = isset($sItem['route']) && \Illuminate\Support\Facades\Route::has($sItem['route']) ? route($sItem['route']) : ($sItem['url'] ?? '#');
+                            @endphp
+                            <li class="nav-item">
+                                <a wire:navigate.hover wire:current="active" class="nav-link" href="{{ $sUrl }}">
+                                    <div class="d-flex align-items-center">
+                                        @if(!empty($sItem['icon']))
+                                            <i class="{{ $sItem['icon'] }} me-1.5 fs-10"></i>
+                                        @endif
+                                        <span class="nav-link-text ps-1">{{ __($sItem['title'] ?? '') }}</span>
+                                        @if (!empty($sItem['badge']))
+                                            <span class="badge rounded-pill ms-auto badge-subtle-primary">{{ $sItem['badge'] }}</span>
+                                        @endif
+                                    </div>
+                                </a>
+                            </li>
+                        @endforeach
+                    @endif
                 </ul>
             </li>
+
+            {{-- ── Dynamic Plugin Sidebar Items & Custom Sections ────────────────────── --}}
+            @if(!empty($sectionItems))
+                @foreach($sectionItems as $sectionTitle => $items)
+                    <li class="nav-item">
+                        <div class="row navbar-vertical-label-wrapper mt-3 mb-2">
+                            <div class="col-auto navbar-vertical-label">{{ $sectionTitle }}</div>
+                            <div class="col ps-0">
+                                <hr class="mb-0 navbar-vertical-divider" />
+                            </div>
+                        </div>
+                        @foreach($items as $idx => $pItem)
+                            @php
+                                $targetUrl = isset($pItem['route']) && \Illuminate\Support\Facades\Route::has($pItem['route']) 
+                                    ? route($pItem['route']) 
+                                    : ($pItem['url'] ?? '#');
+                                $itemIcon = $pItem['icon'] ?? 'bi bi-puzzle';
+                                $itemTitle = $pItem['title'] ?? 'Plugin Menu';
+                                $hasChildren = !empty($pItem['children']) && is_array($pItem['children']);
+                                $dropdownId = 'pluginNav_' . \Illuminate\Support\Str::slug($pItem['id'] ?? ($pItem['title'] . '_' . $idx));
+                            @endphp
+
+                            @if($hasChildren)
+                                <!-- Collapsible Dropdown -->
+                                <a class="nav-link dropdown-indicator collapsed" href="#{{ $dropdownId }}" role="button"
+                                    data-bs-toggle="collapse" aria-expanded="false" aria-controls="{{ $dropdownId }}">
+                                    <div class="d-flex align-items-center">
+                                        <span class="nav-link-icon"><i class="{{ $itemIcon }}"></i></span>
+                                        <span class="nav-link-text ps-1">{{ __($itemTitle) }}</span>
+                                        @if(isset($pItem['badge']))
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill ms-auto py-0.5 px-2 text-[10px]">{{ $pItem['badge'] }}</span>
+                                        @endif
+                                    </div>
+                                </a>
+                                <ul class="nav collapse" id="{{ $dropdownId }}">
+                                    @foreach($pItem['children'] as $child)
+                                        @php
+                                            $cUrl = isset($child['route']) && \Illuminate\Support\Facades\Route::has($child['route']) ? route($child['route']) : ($child['url'] ?? '#');
+                                        @endphp
+                                        <li class="nav-item">
+                                            <a wire:navigate.hover wire:current="active" class="nav-link" href="{{ $cUrl }}">
+                                                <div class="d-flex align-items-center">
+                                                    @if(!empty($child['icon']))
+                                                        <i class="{{ $child['icon'] }} me-1.5 fs-10"></i>
+                                                    @endif
+                                                    <span class="nav-link-text ps-1">{{ __($child['title'] ?? '') }}</span>
+                                                    @if(!empty($child['badge']))
+                                                        <span class="badge rounded-pill ms-auto badge-subtle-primary">{{ $child['badge'] }}</span>
+                                                    @endif
+                                                </div>
+                                            </a>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @else
+                                <!-- Standalone Link -->
+                                <a wire:navigate.hover wire:current="active" class="nav-link" href="{{ $targetUrl }}" role="button">
+                                    <div class="d-flex align-items-center">
+                                        <span class="nav-link-icon"><i class="{{ $itemIcon }}"></i></span>
+                                        <span class="nav-link-text ps-1">{{ __($itemTitle) }}</span>
+                                        @if(isset($pItem['badge']))
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill ms-auto py-0.5 px-2 text-[10px]">{{ $pItem['badge'] }}</span>
+                                        @endif
+                                    </div>
+                                </a>
+                            @endif
+                        @endforeach
+                    </li>
+                @endforeach
+            @endif
         </ul>
     @endif
 @else

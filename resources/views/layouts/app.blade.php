@@ -29,6 +29,7 @@
     @filamentStyles
     <link rel="stylesheet" href="{{ asset('css/filament/filament/app.css') }}">
     @livewireStyles
+    {!! \App\Support\Hooks::applyFilters('layout.head', '') !!}
     <!-- ===============================================-->
     <!--    Stylesheets-->
     <!-- ===============================================-->
@@ -452,6 +453,7 @@
     </script>
 
     @stack('scripts')
+    {!! \App\Support\Hooks::applyFilters('layout.scripts', '') !!}
 
     {{-- Attribution notice — required by LICENSE. Do not remove. See: https://codepagol.com --}}
     <div id="codepagol-attribution" style="display:none" aria-hidden="true"

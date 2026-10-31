@@ -27,7 +27,7 @@ export default {
     },
 
     plugins: [
-        forms,
+        forms({ strategy: 'class' }),
         typography,
     ],
 };

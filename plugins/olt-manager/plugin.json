@@ -1,0 +1,14 @@
+{
+    "id": "olt-manager",
+    "name": "OLT Manager",
+    "version": "1.0.0",
+    "description": "Manage Huawei & ZTE OLT devices — view ONUs, check signal levels, provision new subscribers, and reboot ports directly from the admin panel.",
+    "author": "Your Name / Company",
+    "author_url": "https://yoursite.com",
+    "requires_core": "1.0.0",
+    "requires_license": true,
+    "class": "Plugins\\OltManager\\Plugin",
+    "tags": ["olt", "fiber", "huawei", "zte", "network"],
+    "support_url": "https://yoursite.com/support",
+    "changelog_url": "https://yoursite.com/plugins/olt-manager/changelog"
+}
