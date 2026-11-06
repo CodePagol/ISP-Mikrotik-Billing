@@ -384,7 +384,12 @@ class PluginManager extends Component
             return [false, 'plugin.json is missing the required "id" field.'];
         }
 
-        $slug        = $meta['id'];
+        $slug = preg_replace('/[^a-zA-Z0-9_\-]/', '', $meta['id']);
+        if (empty($slug)) {
+            $zip->close();
+            return [false, 'plugin.json has an invalid "id" format.'];
+        }
+
         $destination = base_path("plugins/{$slug}");
 
         $topLevelFolder = '';
@@ -400,6 +405,11 @@ class PluginManager extends Component
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $name = $zip->getNameIndex($i);
             $relativePath = $topLevelFolder ? substr($name, strlen($topLevelFolder)) : $name;
+
+            // Prevent Zip Slip / path traversal
+            if (str_contains($relativePath, '..') || str_starts_with($relativePath, '/') || str_starts_with($relativePath, '\\')) {
+                continue;
+            }
 
             if ($relativePath === '' || str_ends_with($relativePath, '/')) {
                 $dir = $destination . '/' . $relativePath;

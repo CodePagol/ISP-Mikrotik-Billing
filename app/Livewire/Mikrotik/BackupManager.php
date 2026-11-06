@@ -161,6 +161,8 @@ class BackupManager extends Component
             return;
         }
 
+        $name = basename($name);
+
         try {
             $ctrl = app(MikrotikController::class);
 
@@ -175,14 +177,15 @@ class BackupManager extends Component
                 }
             } else {
                 // Delete binary .backup from router flash + its local .rsc mirror
+                $safeName = addcslashes($name, "\"\\");
                 $ctrl->singleWrite(
                     $this->selectedRouter,
-                    '/file remove [find name="'.$name.'"]'
+                    '/file remove [find name="'.$safeName.'"]'
                 );
                 flash()->success("Remote backup '{$name}' deleted from router.");
 
                 // Also remove local .rsc mirror if it exists (same timestamp)
-                $rscName = str_replace('AutoBackup_', $this->selectedRouter.'_', str_replace('.backup', '.rsc', $name));
+                $rscName = basename(str_replace('AutoBackup_', $this->selectedRouter.'_', str_replace('.backup', '.rsc', $name)));
                 $rscPath = base_path('backups/'.$rscName);
                 if (file_exists($rscPath)) {
                     unlink($rscPath);
@@ -202,10 +205,12 @@ class BackupManager extends Component
             return;
         }
 
+        $safeName = addcslashes(basename($name), "\"\\");
+
         try {
             app(MikrotikController::class)->singleWrite(
                 $this->selectedRouter,
-                '/system backup load name='.$name
+                '/system backup load name="'.$safeName.'"'
             );
 
             flash()->success("Restore initiated. The router '{$this->selectedRouter}' will now reboot and apply the configuration.");
@@ -216,6 +221,8 @@ class BackupManager extends Component
 
     public function downloadBackupFile(string $name): mixed
     {
+        $name = basename($name);
+
         if (str_ends_with($name, '.rsc')) {
             // Initiate browser download for the LOCAL mirrored configuration
             $path = base_path('backups/'.$name);

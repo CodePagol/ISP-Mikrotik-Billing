@@ -307,7 +307,12 @@ class PluginManagerPage extends Page implements HasForms
             return [false, 'plugin.json is missing the required "id" field.'];
         }
 
-        $slug        = $meta['id'];
+        $slug = preg_replace('/[^a-zA-Z0-9_\-]/', '', $meta['id']);
+        if (empty($slug)) {
+            $zip->close();
+            return [false, 'plugin.json has an invalid "id" format.'];
+        }
+
         $destination = base_path("plugins/{$slug}");
 
         // Detect top-level folder in ZIP (common pattern: plugin-name-v1.0/)
@@ -329,6 +334,11 @@ class PluginManagerPage extends Page implements HasForms
             $relativePath = $topLevelFolder
                 ? substr($name, strlen($topLevelFolder))
                 : $name;
+
+            // Prevent Zip Slip / path traversal
+            if (str_contains($relativePath, '..') || str_starts_with($relativePath, '/') || str_starts_with($relativePath, '\\')) {
+                continue;
+            }
 
             if ($relativePath === '' || str_ends_with($relativePath, '/')) {
                 $dir = $destination . '/' . $relativePath;

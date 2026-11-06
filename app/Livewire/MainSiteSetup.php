@@ -717,6 +717,7 @@ class MainSiteSetup extends Component implements HasActions, HasForms
 
     public function downloadBackupFile(string $name)
     {
+        $name = basename($name);
         $path = base_path('backups/'.$name);
         if (file_exists($path)) {
             return response()->download($path);
@@ -727,6 +728,7 @@ class MainSiteSetup extends Component implements HasActions, HasForms
 
     public function deleteBackupFile($fileName)
     {
+        $fileName = basename($fileName);
         $path = base_path('backups/'.$fileName);
         if (file_exists($path)) {
             unlink($path);
@@ -736,6 +738,7 @@ class MainSiteSetup extends Component implements HasActions, HasForms
 
     public function restoreFromBackup($fileName)
     {
+        $fileName = basename($fileName);
         $path = base_path('backups/'.$fileName);
 
         if (! file_exists($path)) {
@@ -756,20 +759,43 @@ class MainSiteSetup extends Component implements HasActions, HasForms
         $executable = $isWindows ? 'mysql.exe' : 'mysql';
 
         if (! empty($mysqlPath)) {
-            $mysqlCmd = escapeshellarg(rtrim($mysqlPath, '/\\').DIRECTORY_SEPARATOR.$executable);
+            $mysqlCmd = rtrim($mysqlPath, '/\\').DIRECTORY_SEPARATOR.$executable;
         } else {
-            $mysqlCmd = escapeshellarg($this->autoDetectMysqlPath('mysql'));
+            $mysqlCmd = $this->autoDetectMysqlPath('mysql');
         }
 
-        $passwordStr = $password ? "--password=\"{$password}\"" : '';
-        $command = "{$mysqlCmd} -h {$host} -P {$port} -u {$username} {$passwordStr} {$dbName} < ".escapeshellarg($path).' 2>&1';
+        $args = [
+            $mysqlCmd,
+            '-h', $host,
+            '-P', $port,
+            '-u', $username,
+        ];
 
-        exec($command, $output, $returnVar);
+        if ($password !== '' && $password !== null) {
+            $args[] = "--password={$password}";
+        }
 
-        if ($returnVar !== 0) {
-            $errorMessage = implode('<br>', $output);
+        $args[] = $dbName;
+
+        $fileHandle = fopen($path, 'r');
+        $process = new \Symfony\Component\Process\Process($args);
+        $process->setInput($fileHandle);
+        $process->setTimeout(600);
+
+        $process->run();
+
+        if (is_resource($fileHandle)) {
+            fclose($fileHandle);
+        }
+
+        if (! $process->isSuccessful()) {
+            $errorMessage = trim($process->getErrorOutput());
             Log::error('Restore failed: '.$errorMessage);
-            flash()->error("<b>Restore Failed!</b><br>Error: <code>{$errorMessage}</code><br>Command run: <code style='font-size:10px;'>{$command}</code>");
+
+            $passwordPreview = $password !== '' && $password !== null ? ' --password=***' : '';
+            $commandPreview = escapeshellarg($mysqlCmd).' -h '.escapeshellarg($host).' -P '.escapeshellarg($port).' -u '.escapeshellarg($username).$passwordPreview.' '.escapeshellarg($dbName).' < '.escapeshellarg($fileName);
+
+            flash()->error("<b>Restore Failed!</b><br>Error: <code>{$errorMessage}</code><br>Command run: <code style='font-size:10px;'>{$commandPreview}</code>");
 
             return;
         }
@@ -821,11 +847,6 @@ class MainSiteSetup extends Component implements HasActions, HasForms
         if ($isWindows) {
             $binaryWithExt = $binary.'.exe';
 
-            exec("where {$binaryWithExt} 2>nul", $output, $returnVar);
-            if ($returnVar === 0 && ! empty($output[0])) {
-                return trim($output[0]);
-            }
-
             $currentDrive = strtoupper(substr(base_path(), 0, 1));
             $drivesToCheck = array_unique([$currentDrive, 'C', 'D', 'E', 'F']);
 
@@ -841,12 +862,14 @@ class MainSiteSetup extends Component implements HasActions, HasForms
                 }
             }
 
-            return $binaryWithExt;
-        }
+            if (function_exists('exec')) {
+                exec("where {$binaryWithExt} 2>nul", $output, $returnVar);
+                if ($returnVar === 0 && ! empty($output[0])) {
+                    return trim($output[0]);
+                }
+            }
 
-        exec("which {$binary} 2>/dev/null", $output, $returnVar);
-        if ($returnVar === 0 && ! empty($output[0])) {
-            return trim($output[0]);
+            return $binaryWithExt;
         }
 
         $commonUnixPaths = [
@@ -859,6 +882,13 @@ class MainSiteSetup extends Component implements HasActions, HasForms
         foreach ($commonUnixPaths as $path) {
             if (file_exists($path)) {
                 return $path;
+            }
+        }
+
+        if (function_exists('exec')) {
+            exec("which {$binary} 2>/dev/null", $output, $returnVar);
+            if ($returnVar === 0 && ! empty($output[0])) {
+                return trim($output[0]);
             }
         }
 

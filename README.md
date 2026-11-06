@@ -235,4 +235,6 @@ For full setup support, custom ISP modules integration, payment gateway configur
 - **WhatsApp:** [Chat on WhatsApp](https://wa.me/8801840451881)
 - **E-mail:** [rohan9222@gmail.com](mailto:rohan9222@gmail.com)
 
+*#Note:: Please reach out to me directly for any inquiries or support. Advanced and dedicated technical support is offered as a paid service..*
+
 *Feel free to submit a pull request or open an issue on the repository to contribute to the project.*
