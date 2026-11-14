@@ -526,6 +526,43 @@ class UpdateManagerService
                 ];
             }
 
+            // 4. Rate-Limit Immune CDN Manifest Fallback (via raw.githubusercontent.com)
+            // If GitHub REST API is rate-limited (403) or blocked, fetch version directly from raw manifest!
+            $manifestFiles = ['version.json', 'plugin.json'];
+            foreach ($manifestFiles as $mFile) {
+                try {
+                    $rawManifest = Http::timeout(6)->get("https://raw.githubusercontent.com/{$repoSlug}/main/{$mFile}?t=" . time());
+                    if ($rawManifest->successful() && !empty($rawManifest->json('version'))) {
+                        $manifestVer = ltrim(trim($rawManifest->json('version')), 'v');
+                        $hasUpdate = version_compare($manifestVer, $currentVersion, '>');
+
+                        $changelogRaw = "New release v{$manifestVer} is available on GitHub.";
+                        try {
+                            $rawChangelog = Http::timeout(6)->get("https://raw.githubusercontent.com/{$repoSlug}/main/CHANGELOG.md?t=" . time());
+                            if ($rawChangelog->successful() && !empty($rawChangelog->body())) {
+                                $changelogRaw = $rawChangelog->body();
+                            }
+                        } catch (Exception $ce) {
+                            // ignore
+                        }
+
+                        return [
+                            'has_update'      => $hasUpdate,
+                            'current_version' => $currentVersion,
+                            'latest_version'  => $manifestVer,
+                            'release_name'    => "v{$manifestVer}",
+                            'release_date'    => $rawManifest->json('release_date') ?? 'Latest Release',
+                            'changelog_raw'   => $changelogRaw,
+                            'changelog_html'  => Str::markdown($changelogRaw),
+                            'html_url'        => "https://github.com/{$repoSlug}/releases/tag/v{$manifestVer}",
+                            'checked_at'      => now()->format('d M, Y h:i A'),
+                        ];
+                    }
+                } catch (Exception $me) {
+                    // continue to next manifest file
+                }
+            }
+
             return [
                 'has_update'      => false,
                 'current_version' => $currentVersion,
