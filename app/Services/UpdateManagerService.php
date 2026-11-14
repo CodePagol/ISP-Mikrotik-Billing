@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Exception;
+use ZipArchive;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
@@ -133,31 +134,77 @@ class UpdateManagerService
     }
 
     /**
+     * Check if Git CLI is installed and operable
+     */
+    public function isGitAvailable(): bool
+    {
+        try {
+            $check = Process::run('git --version');
+            return $check->successful();
+        } catch (Exception $e) {
+            return false;
+        }
+    }
+
+    /**
      * Perform Core System Update
+     * Dual Mode: Uses Git pull (diff-only) if available, or cPanel Safe ZIP package merge fallback
      */
     public function performCoreUpdate(): array
     {
         $outputLogs = [];
         $baseDir = base_path();
+        $repoSlug = $this->getCoreRepository();
 
-        try {
-            // 1. Git fetch and pull
-            $gitPull = Process::path($baseDir)->timeout(180)->run('git pull origin main 2>&1');
-            $outputLogs[] = "=== Git Pull ===\n" . $gitPull->output();
+        $updateInfo = $this->checkCoreUpdate();
+        $latestTag = $updateInfo['latest_version'] ?? 'main';
 
-            if (!$gitPull->successful()) {
+        $usedMode = 'git';
+        $canUseGit = is_dir("{$baseDir}/.git") && $this->isGitAvailable();
+
+        if ($canUseGit) {
+            try {
+                $gitPull = Process::path($baseDir)->timeout(180)->run('git pull origin main 2>&1');
+                $outputLogs[] = "=== Git Pull [Core System] ===\n" . $gitPull->output();
+
+                if (!$gitPull->successful()) {
+                    $outputLogs[] = "Git pull failed, falling back to direct ZIP package update...";
+                    $canUseGit = false;
+                }
+            } catch (Exception $ge) {
+                $outputLogs[] = "Git execution failed ({$ge->getMessage()}), falling back to direct ZIP package update...";
+                $canUseGit = false;
+            }
+        }
+
+        // If not Git or Git pull failed: Use ZIP Fallback (cPanel / Shared Hosting mode)
+        if (!$canUseGit) {
+            $usedMode = 'zip';
+            // Exclude user-specific files during core overwrite:
+            $excludes = [
+                '.env',
+                'storage',
+                'plugins',
+                'public/storage',
+                '.git',
+                'node_modules',
+            ];
+            $zipSuccess = $this->downloadAndExtractGitHubZip($repoSlug, $latestTag, $baseDir, $outputLogs, $excludes);
+            if (!$zipSuccess) {
                 return [
                     'success' => false,
                     'output'  => implode("\n\n", $outputLogs),
-                    'message' => 'Git pull failed. Please check permissions or git status.',
+                    'message' => 'Core system update via ZIP failed.',
                 ];
             }
+        }
 
-            // 2. Run Database Migrations
+        try {
+            // Run Database Migrations
             Artisan::call('migrate', ['--force' => true]);
             $outputLogs[] = "=== Migrations ===\n" . Artisan::output();
 
-            // 3. Clear Caches
+            // Clear Caches
             Artisan::call('optimize:clear');
             $outputLogs[] = "=== Cache Clear ===\n" . Artisan::output();
 
@@ -170,10 +217,114 @@ class UpdateManagerService
                 'success'     => true,
                 'output'      => implode("\n\n", $outputLogs),
                 'new_version' => $newVersion,
-                'message'     => "System updated successfully to v{$newVersion}!",
+                'mode'        => $usedMode,
+                'message'     => "System updated successfully to v{$newVersion} (" . ($usedMode === 'git' ? 'Git Diff' : 'cPanel Safe ZIP Merge') . ")!",
             ];
         } catch (Exception $e) {
-            Log::error("[UpdateManagerService] Core update error: {$e->getMessage()}");
+            Log::error("[UpdateManagerService] Core post-update error: {$e->getMessage()}");
+            return [
+                'success' => false,
+                'output'  => implode("\n\n", $outputLogs) . "\n\nError: " . $e->getMessage(),
+                'message' => 'Post-update steps failed: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Perform Plugin Update
+     * Dual Mode: Uses Git pull (diff-only) if available, or cPanel Direct ZIP package update fallback
+     */
+    public function performPluginUpdate(string $slug): array
+    {
+        $outputLogs = [];
+        $dir = base_path("plugins/{$slug}");
+
+        if (!is_dir($dir)) {
+            return [
+                'success' => false,
+                'output'  => "Error: Directory plugins/{$slug} not found.",
+                'message' => "Plugin directory not found.",
+            ];
+        }
+
+        $metaFile = "{$dir}/plugin.json";
+        $meta = file_exists($metaFile) ? (json_decode(file_get_contents($metaFile), true) ?: []) : [];
+        $repoUrl = $meta['repository'] ?? null;
+        $repoSlug = $repoUrl ? $this->extractRepoSlug($repoUrl) : null;
+
+        $updateInfo = $this->checkPluginUpdate($slug);
+        $latestTag = $updateInfo['latest_version'] ?? 'main';
+
+        $usedMode = 'git';
+        $canUseGit = is_dir("{$dir}/.git") && $this->isGitAvailable();
+
+        if ($canUseGit) {
+            try {
+                $gitPull = Process::path($dir)->timeout(180)->run('git pull origin main 2>&1');
+                $outputLogs[] = "=== Git Pull [{$slug}] ===\n" . $gitPull->output();
+
+                if (!$gitPull->successful()) {
+                    $outputLogs[] = "Git pull failed, falling back to direct ZIP package update...";
+                    $canUseGit = false;
+                }
+            } catch (Exception $ge) {
+                $outputLogs[] = "Git execution failed ({$ge->getMessage()}), falling back to direct ZIP package update...";
+                $canUseGit = false;
+            }
+        }
+
+        // If not Git or Git pull failed: Use ZIP Fallback (cPanel / Shared Hosting mode)
+        if (!$canUseGit) {
+            $usedMode = 'zip';
+            if (!$repoSlug) {
+                return [
+                    'success' => false,
+                    'output'  => implode("\n\n", $outputLogs) . "\nNo valid repository URL configured in plugin.json to download ZIP archive.",
+                    'message' => 'No repository URL configured for download.',
+                ];
+            }
+
+            $zipSuccess = $this->downloadAndExtractGitHubZip($repoSlug, $latestTag, $dir, $outputLogs);
+            if (!$zipSuccess) {
+                return [
+                    'success' => false,
+                    'output'  => implode("\n\n", $outputLogs),
+                    'message' => 'ZIP package update failed for plugin.',
+                ];
+            }
+        }
+
+        try {
+            // Run plugin database migrations if present
+            if (is_dir("{$dir}/database/migrations")) {
+                Artisan::call('migrate', [
+                    '--path'  => "plugins/{$slug}/database/migrations",
+                    '--force' => true,
+                ]);
+                $outputLogs[] = "=== Migrations ===\n" . Artisan::output();
+            }
+
+            // Clear caches
+            Artisan::call('view:clear');
+            Artisan::call('cache:clear');
+            Cache::forget("plugin_update_check_{$slug}");
+
+            // Read new version from plugin.json
+            $newVersion = '1.0.0';
+            if (file_exists($metaFile)) {
+                $freshMeta = json_decode(file_get_contents($metaFile), true) ?: [];
+                $newVersion = $freshMeta['version'] ?? '1.0.0';
+            }
+
+            return [
+                'success'     => true,
+                'output'      => implode("\n\n", $outputLogs),
+                'new_version' => $newVersion,
+                'mode'        => $usedMode,
+                'message'     => "Plugin [{$slug}] updated successfully to v{$newVersion} (" . ($usedMode === 'git' ? 'Git Diff' : 'cPanel ZIP Package') . ")!",
+            ];
+        } catch (Exception $e) {
+            Log::error("[UpdateManagerService] Plugin update error for [{$slug}]: {$e->getMessage()}");
             return [
                 'success' => false,
                 'output'  => implode("\n\n", $outputLogs) . "\n\nError: " . $e->getMessage(),
@@ -183,69 +334,104 @@ class UpdateManagerService
     }
 
     /**
-     * Perform Plugin Update via Git Pull & Migration
+     * Download release ZIP archive from GitHub and extract/merge to target directory
      */
-    public function performPluginUpdate(string $slug): array
+    protected function downloadAndExtractGitHubZip(string $repoSlug, string $tag, string $targetDir, array &$outputLogs, array $excludes = []): bool
     {
-        $outputLogs = [];
-        $dir = base_path("plugins/{$slug}");
-
-        if (!is_dir($dir . '/.git')) {
-            return [
-                'success' => false,
-                'output'  => "Error: Directory plugins/{$slug} is not a Git repository.",
-                'message' => "Plugin [{$slug}] is not a Git repository.",
-            ];
-        }
+        $tempZip = storage_path('app/temp_update_' . uniqid() . '.zip');
+        $tempExtractDir = storage_path('app/temp_extract_' . uniqid());
 
         try {
-            // 1. Git Pull
-            $gitPull = Process::path($dir)->timeout(180)->run('git pull origin main 2>&1');
-            $outputLogs[] = "=== Git Pull [{$slug}] ===\n" . $gitPull->output();
-
-            if (!$gitPull->successful()) {
-                return [
-                    'success' => false,
-                    'output'  => implode("\n\n", $outputLogs),
-                    'message' => 'Git pull failed for plugin.',
-                ];
-            }
-
-            // 2. Run plugin database migrations if present
-            if (is_dir("{$dir}/database/migrations")) {
-                Artisan::call('migrate', [
-                    '--path'  => "plugins/{$slug}/database/migrations",
-                    '--force' => true,
-                ]);
-                $outputLogs[] = "=== Migrations ===\n" . Artisan::output();
-            }
-
-            // 3. Clear caches
-            Artisan::call('view:clear');
-            Artisan::call('cache:clear');
-            Cache::forget("plugin_update_check_{$slug}");
-
-            // Read new version from plugin.json
-            $metaFile = "{$dir}/plugin.json";
-            $newVersion = '1.0.0';
-            if (file_exists($metaFile)) {
-                $meta = json_decode(file_get_contents($metaFile), true) ?? [];
-                $newVersion = $meta['version'] ?? '1.0.0';
-            }
-
-            return [
-                'success'     => true,
-                'output'      => implode("\n\n", $outputLogs),
-                'new_version' => $newVersion,
-                'message'     => "Plugin [{$slug}] updated successfully to v{$newVersion}!",
+            $candidateUrls = [
+                "https://github.com/{$repoSlug}/archive/refs/tags/v{$tag}.zip",
+                "https://github.com/{$repoSlug}/archive/refs/tags/{$tag}.zip",
+                "https://github.com/{$repoSlug}/archive/refs/heads/main.zip",
             ];
+
+            $downloaded = false;
+            $outputLogs[] = "=== Downloading ZIP Package from GitHub [{$repoSlug}] ===";
+
+            foreach ($candidateUrls as $url) {
+                $outputLogs[] = "Trying package URL: {$url}";
+                $response = Http::withHeaders(['User-Agent' => $this->userAgent])
+                    ->timeout(180)
+                    ->get($url);
+
+                if ($response->successful() && strlen($response->body()) > 1000) {
+                    File::ensureDirectoryExists(dirname($tempZip));
+                    file_put_contents($tempZip, $response->body());
+                    $downloaded = true;
+                    $outputLogs[] = "Downloaded package successfully (" . round(strlen($response->body()) / 1024, 1) . " KB).";
+                    break;
+                }
+            }
+
+            if (!$downloaded || !file_exists($tempZip)) {
+                $outputLogs[] = "Error: Failed to download release ZIP from GitHub.";
+                return false;
+            }
+
+            // Extract with ZipArchive
+            $zip = new ZipArchive();
+            if ($zip->open($tempZip) !== true) {
+                $outputLogs[] = "Error: Could not open downloaded ZIP archive.";
+                return false;
+            }
+
+            File::ensureDirectoryExists($tempExtractDir);
+            $zip->extractTo($tempExtractDir);
+            $zip->close();
+            @unlink($tempZip);
+
+            // GitHub ZIP archives always contain a root directory (e.g. repo-1.0.1 or repo-main)
+            $subDirs = File::directories($tempExtractDir);
+            $sourceDir = !empty($subDirs) ? $subDirs[0] : $tempExtractDir;
+
+            $outputLogs[] = "=== Extracting and Applying Update Files ===";
+            $this->mergeDirectory($sourceDir, $targetDir, $excludes);
+
+            // Clean up temp directory
+            File::deleteDirectory($tempExtractDir);
+            $outputLogs[] = "Update files applied successfully.";
+
+            return true;
         } catch (Exception $e) {
-            Log::error("[UpdateManagerService] Plugin update error for [{$slug}]: {$e->getMessage()}");
-            return [
-                'success' => false,
-                'output'  => implode("\n\n", $outputLogs) . "\n\nError: " . $e->getMessage(),
-                'message' => 'Update failed: ' . $e->getMessage(),
-            ];
+            $outputLogs[] = "Error during ZIP update: " . $e->getMessage();
+            @unlink($tempZip);
+            if (is_dir($tempExtractDir)) {
+                File::deleteDirectory($tempExtractDir);
+            }
+            return false;
+        }
+    }
+
+    /**
+     * Recursively merge files from source to destination directory with exclusions
+     */
+    protected function mergeDirectory(string $src, string $dst, array $excludes = []): void
+    {
+        File::ensureDirectoryExists($dst);
+        $items = scandir($src);
+
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+
+            $srcPath = $src . DIRECTORY_SEPARATOR . $item;
+            $dstPath = $dst . DIRECTORY_SEPARATOR . $item;
+
+            // Check if item name or relative path matches excludes
+            if (in_array($item, $excludes, true)) {
+                continue;
+            }
+
+            if (is_dir($srcPath)) {
+                $this->mergeDirectory($srcPath, $dstPath, $excludes);
+            } else {
+                File::ensureDirectoryExists(dirname($dstPath));
+                copy($srcPath, $dstPath);
+            }
         }
     }
 
