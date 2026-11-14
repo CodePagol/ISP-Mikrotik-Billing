@@ -64,6 +64,7 @@ class PluginManager extends Component
     {
         $updateService = app(UpdateManagerService::class);
         $this->coreUpdateInfo = $updateService->checkCoreUpdate($force);
+        $updateService->checkAllPluginsUpdate($force);
 
         if ($force) {
             $this->successMessage = __('Checked for updates successfully.');

@@ -67,7 +67,7 @@ class UpdateManagerService
             Cache::forget($cacheKey);
         }
 
-        return Cache::remember($cacheKey, now()->addHours(6), function () use ($slug) {
+        return Cache::remember($cacheKey, now()->addMinutes(15), function () use ($slug) {
             $dir = base_path("plugins/{$slug}");
             $metaFile = "{$dir}/plugin.json";
 
@@ -296,9 +296,24 @@ class UpdateManagerService
             if ($tagsResponse->successful()) {
                 $tags = $tagsResponse->json();
                 if (!empty($tags) && is_array($tags)) {
-                    $latestTagObj = $tags[0];
-                    $latestTag = ltrim(trim($latestTagObj['name'] ?? ''), 'v');
+                    $tagNames = array_column($tags, 'name');
+                    usort($tagNames, function ($a, $b) {
+                        return version_compare(ltrim($b, 'v'), ltrim($a, 'v'));
+                    });
+                    $latestTagName = $tagNames[0];
+                    $latestTag = ltrim(trim($latestTagName), 'v');
                     $hasUpdate = version_compare($latestTag, $currentVersion, '>');
+
+                    // Attempt to fetch CHANGELOG.md from raw.githubusercontent.com
+                    $changelogRaw = "New release tag v{$latestTag} is available on GitHub.";
+                    try {
+                        $rawChangelog = Http::timeout(6)->get("https://raw.githubusercontent.com/{$repoSlug}/main/CHANGELOG.md");
+                        if ($rawChangelog->successful() && !empty($rawChangelog->body())) {
+                            $changelogRaw = $rawChangelog->body();
+                        }
+                    } catch (Exception $ce) {
+                        // ignore and use fallback message
+                    }
 
                     return [
                         'has_update'      => $hasUpdate,
@@ -306,9 +321,9 @@ class UpdateManagerService
                         'latest_version'  => $latestTag ?: $currentVersion,
                         'release_name'    => "v{$latestTag}",
                         'release_date'    => 'Latest Tag',
-                        'changelog_raw'   => "New release tag v{$latestTag} is available.",
-                        'changelog_html'  => "<p>New release tag <strong>v{$latestTag}</strong> is available on GitHub.</p>",
-                        'html_url'        => "https://github.com/{$repoSlug}/releases/tag/{$latestTagObj['name']}",
+                        'changelog_raw'   => $changelogRaw,
+                        'changelog_html'  => Str::markdown($changelogRaw),
+                        'html_url'        => "https://github.com/{$repoSlug}/releases/tag/{$latestTagName}",
                         'checked_at'      => now()->format('d M, Y h:i A'),
                     ];
                 }
