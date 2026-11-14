@@ -7,6 +7,19 @@ All notable changes to the **ISP Mikrotik Billing** project will be documented i
 ## [v3.0.0] - 2026-11-14
 
 ### 🌟 Major Release Highlights
+
+- **🔌 Extensible Developer Plugin Architecture & Ecosystem:**
+  - **Modular Decoupled Design:** Developers can now build, publish, and monetize custom extensions independently inside `plugins/{slug}/` without modifying core system files.
+  - **Standardized Plugin Manifest & Lifecycle:** Support for standard `plugin.json` (metadata, author, version, dependencies, license requirement, GitHub repository) and `Plugin.php` (hooks for `boot()`, `register()`, and `uninstall()`).
+  - **Autonomous Database & Routing:** Plugins support their own database migrations (`plugins/{slug}/database/migrations`), dedicated routes (`web.php`, `api.php`), and Blade views.
+  - **3 Modular Installation Methods for Admins & Developers:**
+    1. **ZIP Archive Upload:** Upload pre-packaged plugins directly via admin UI.
+    2. **GitHub / Git URL Clone:** Instant 1-click clone from any public or private Git repository with custom branch selection.
+    3. **Composer Package Installation:** Install official or third-party extensions directly through Composer.
+  - **In-App Developer Guide:** Embedded documentation tab inside **Plugin Manager &rarr; Developer Guide** with starter templates, directory hierarchy, and hook references.
+  - **Commercial Licensing Guard:** Built-in licensing validation system for developers to safeguard commercial and proprietary extensions.
+  - **Independent Plugin Versioning & 1-Click Updates:** Plugins in standalone repositories (e.g., `ISP-Billing-inventory-manager`) can be versioned and updated independently via the update engine without requiring a core system redeployment.
+
 - **Smart Dual-Engine Update System:**
   - Automated detection of Git vs cPanel / Shared Hosting environments.
   - **Git Mode:** Ultra-fast, bandwidth-saving diff-only update via `git pull origin main`.
