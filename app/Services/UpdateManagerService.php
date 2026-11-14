@@ -499,10 +499,13 @@ class UpdateManagerService
             } elseif (!empty($latestTagName)) {
                 $hasUpdate = version_compare($latestTagFromTags, $currentVersion, '>');
 
-                // Attempt to fetch CHANGELOG.md from raw.githubusercontent.com
+                // Attempt to fetch CHANGELOG.md from raw.githubusercontent.com (using tag or cache-busting param)
                 $changelogRaw = "New release tag v{$latestTagFromTags} is available on GitHub.";
                 try {
-                    $rawChangelog = Http::timeout(6)->get("https://raw.githubusercontent.com/{$repoSlug}/main/CHANGELOG.md");
+                    $rawChangelog = Http::timeout(6)->get("https://raw.githubusercontent.com/{$repoSlug}/{$latestTagName}/CHANGELOG.md");
+                    if (!$rawChangelog->successful()) {
+                        $rawChangelog = Http::timeout(6)->get("https://raw.githubusercontent.com/{$repoSlug}/main/CHANGELOG.md?t=" . time());
+                    }
                     if ($rawChangelog->successful() && !empty($rawChangelog->body())) {
                         $changelogRaw = $rawChangelog->body();
                     }
