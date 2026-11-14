@@ -4,24 +4,23 @@ All notable changes to the **ISP Mikrotik Billing** project will be documented i
 
 ---
 
-## [v2.0.1] - 2026-11-14
+## [v3.0.0] - 2026-11-14
 
-### 🚀 New Features & Enhancements
-- **GitHub Release & Changelog Update Engine:**
-  - Integrated `UpdateManagerService` to automatically detect releases, tags, and changelogs from GitHub.
-  - Added modern interactive Changelog modal popup in **Plugin Manager** allowing admins to review changes before upgrading.
-  - **Super Admin Notification Badge:** Added auto-updating notification badge in the admin navigation header to alert Super Admins whenever a new core update is released.
-- **Smart Dual-Engine Updater (cPanel / Shared Hosting Ready):**
-  - **Git Mode:** Fast, lightweight diff-only update via `git pull origin main` when Git is available.
-  - **cPanel Safe ZIP Merge Mode:** If Git is not installed or the project was uploaded via ZIP, it automatically downloads and extracts the release package using PHP `ZipArchive`.
-  - **Protected Data & Config:** Strictly shields `.env`, `storage/` (customer documents, backups, logs), `plugins/`, and database configurations during core updates.
-
-### 🧹 Code Cleanup & Optimizations
-- **Composer Cleaned:** Removed unused packages (`laravel/socialite`, `laravel/pennant`, `laravel/scout`, `phpoffice/phpspreadsheet`, `spatie/laravel-backup-server`, `pestphp/pest-plugin`, and orphaned `"Plugins\\": "plugins/"` namespace) reducing vendor size and dependencies.
-- **Cache Invalidation:** Improved update cache busting on manual check, reducing polling delays and stale cache states.
-
-### 📱 UI & Responsiveness
-- **100% Responsive Modal Standards:** All administrative modals now feature sticky pinned headers/footers with smooth vertical scrolling (`min-height: 0`, `overflow-y: auto`) and dynamic viewport height (`100dvh`) support.
+### 🌟 Major Release Highlights
+- **Smart Dual-Engine Update System:**
+  - Automated detection of Git vs cPanel / Shared Hosting environments.
+  - **Git Mode:** Ultra-fast, bandwidth-saving diff-only update via `git pull origin main`.
+  - **cPanel Safe ZIP Fallback Mode:** Seamless 1-click update without Git CLI using native PHP `ZipArchive`.
+  - **Zero-Loss Data Protection:** Strictly guards `.env`, `storage/` (customer files, logs, backups), `plugins/`, and database configurations during core updates.
+- **Auto-Updating Super Admin Notification Engine:**
+  - Real-time notification badge in the header navbar alerting Super Admins when new versions are published on GitHub.
+  - Interactive popup modal displaying release notes and changelog before updating.
+- **Dependency Clean & Vendor Optimization:**
+  - Removed dead/unused packages (`laravel/socialite`, `laravel/pennant`, `laravel/scout`, `phpoffice/phpspreadsheet`, `spatie/laravel-backup-server`, `pestphp/pest-plugin`, and orphaned `Plugins` namespace).
+  - Cleaned `composer.lock` achieving 0 warnings on `composer validate`.
+- **100% Responsive Adaptive UI Across All Modals:**
+  - Pin-fixed header & sticky footer architecture with smooth scrolling bodies (`min-height: 0`, `overflow-y: auto`).
+  - Dynamic viewport height support (`100dvh`) eliminating overflow and zoom issues on mobile/tablet devices.
 
 ---
 
