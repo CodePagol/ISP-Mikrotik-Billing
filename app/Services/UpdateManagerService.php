@@ -447,7 +447,9 @@ class UpdateManagerService
                 $headers['Authorization'] = 'Bearer ' . $token;
             }
 
-            // Try releases first
+            // 1. Check GitHub Releases
+            $releaseData = null;
+            $releaseTag = '0.0.0';
             $releasesResponse = Http::withHeaders($headers)
                 ->timeout(10)
                 ->get("https://api.github.com/repos/{$repoSlug}/releases");
@@ -455,26 +457,14 @@ class UpdateManagerService
             if ($releasesResponse->successful()) {
                 $releases = $releasesResponse->json();
                 if (!empty($releases) && is_array($releases)) {
-                    $latest = $releases[0];
-                    $latestTag = ltrim(trim($latest['tag_name'] ?? ''), 'v');
-
-                    $hasUpdate = version_compare($latestTag, $currentVersion, '>');
-
-                    return [
-                        'has_update'      => $hasUpdate,
-                        'current_version' => $currentVersion,
-                        'latest_version'  => $latestTag ?: $currentVersion,
-                        'release_name'    => $latest['name'] ?? "Release v{$latestTag}",
-                        'release_date'    => !empty($latest['published_at']) ? date('d M, Y', strtotime($latest['published_at'])) : '-',
-                        'changelog_raw'   => $latest['body'] ?? 'No release notes provided.',
-                        'changelog_html'  => Str::markdown($latest['body'] ?? 'No release notes provided.'),
-                        'html_url'        => $latest['html_url'] ?? "https://github.com/{$repoSlug}",
-                        'checked_at'      => now()->format('d M, Y h:i A'),
-                    ];
+                    $releaseData = $releases[0];
+                    $releaseTag = ltrim(trim($releaseData['tag_name'] ?? '0.0.0'), 'v');
                 }
             }
 
-            // Fallback to tags if releases are empty
+            // 2. Check GitHub Tags as well (to detect newly pushed tags that may not have a Release object yet)
+            $latestTagFromTags = '0.0.0';
+            $latestTagName = '';
             $tagsResponse = Http::withHeaders($headers)
                 ->timeout(10)
                 ->get("https://api.github.com/repos/{$repoSlug}/tags");
@@ -487,32 +477,50 @@ class UpdateManagerService
                         return version_compare(ltrim($b, 'v'), ltrim($a, 'v'));
                     });
                     $latestTagName = $tagNames[0];
-                    $latestTag = ltrim(trim($latestTagName), 'v');
-                    $hasUpdate = version_compare($latestTag, $currentVersion, '>');
-
-                    // Attempt to fetch CHANGELOG.md from raw.githubusercontent.com
-                    $changelogRaw = "New release tag v{$latestTag} is available on GitHub.";
-                    try {
-                        $rawChangelog = Http::timeout(6)->get("https://raw.githubusercontent.com/{$repoSlug}/main/CHANGELOG.md");
-                        if ($rawChangelog->successful() && !empty($rawChangelog->body())) {
-                            $changelogRaw = $rawChangelog->body();
-                        }
-                    } catch (Exception $ce) {
-                        // ignore and use fallback message
-                    }
-
-                    return [
-                        'has_update'      => $hasUpdate,
-                        'current_version' => $currentVersion,
-                        'latest_version'  => $latestTag ?: $currentVersion,
-                        'release_name'    => "v{$latestTag}",
-                        'release_date'    => 'Latest Tag',
-                        'changelog_raw'   => $changelogRaw,
-                        'changelog_html'  => Str::markdown($changelogRaw),
-                        'html_url'        => "https://github.com/{$repoSlug}/releases/tag/{$latestTagName}",
-                        'checked_at'      => now()->format('d M, Y h:i A'),
-                    ];
+                    $latestTagFromTags = ltrim(trim($latestTagName), 'v');
                 }
+            }
+
+            // 3. Compare which one is truly the latest version
+            if ($releaseData && version_compare($releaseTag, $latestTagFromTags, '>=')) {
+                $hasUpdate = version_compare($releaseTag, $currentVersion, '>');
+
+                return [
+                    'has_update'      => $hasUpdate,
+                    'current_version' => $currentVersion,
+                    'latest_version'  => $releaseTag ?: $currentVersion,
+                    'release_name'    => $releaseData['name'] ?? "Release v{$releaseTag}",
+                    'release_date'    => !empty($releaseData['published_at']) ? date('d M, Y', strtotime($releaseData['published_at'])) : '-',
+                    'changelog_raw'   => $releaseData['body'] ?? 'No release notes provided.',
+                    'changelog_html'  => Str::markdown($releaseData['body'] ?? 'No release notes provided.'),
+                    'html_url'        => $releaseData['html_url'] ?? "https://github.com/{$repoSlug}",
+                    'checked_at'      => now()->format('d M, Y h:i A'),
+                ];
+            } elseif (!empty($latestTagName)) {
+                $hasUpdate = version_compare($latestTagFromTags, $currentVersion, '>');
+
+                // Attempt to fetch CHANGELOG.md from raw.githubusercontent.com
+                $changelogRaw = "New release tag v{$latestTagFromTags} is available on GitHub.";
+                try {
+                    $rawChangelog = Http::timeout(6)->get("https://raw.githubusercontent.com/{$repoSlug}/main/CHANGELOG.md");
+                    if ($rawChangelog->successful() && !empty($rawChangelog->body())) {
+                        $changelogRaw = $rawChangelog->body();
+                    }
+                } catch (Exception $ce) {
+                    // ignore and use fallback message
+                }
+
+                return [
+                    'has_update'      => $hasUpdate,
+                    'current_version' => $currentVersion,
+                    'latest_version'  => $latestTagFromTags ?: $currentVersion,
+                    'release_name'    => "v{$latestTagFromTags}",
+                    'release_date'    => 'Latest Tag',
+                    'changelog_raw'   => $changelogRaw,
+                    'changelog_html'  => Str::markdown($changelogRaw),
+                    'html_url'        => "https://github.com/{$repoSlug}/releases/tag/{$latestTagName}",
+                    'checked_at'      => now()->format('d M, Y h:i A'),
+                ];
             }
 
             return [
