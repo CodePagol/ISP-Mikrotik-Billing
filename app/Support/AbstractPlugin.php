@@ -153,6 +153,18 @@ abstract class AbstractPlugin implements PluginContract
     public function getViewNamespaces(): array { return []; }
 
     /**
+     * Translation directories to register (JSON & PHP translations).
+     *
+     * Example:
+     *   return [__DIR__ . '/resources/lang'];
+     */
+    public function getTranslationPaths(): array
+    {
+        $defaultLang = $this->pluginPath('resources/lang');
+        return is_dir($defaultLang) ? [$defaultLang] : [];
+    }
+
+    /**
      * Config files to merge.
      *
      * Example:

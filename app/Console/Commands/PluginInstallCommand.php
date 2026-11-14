@@ -51,9 +51,42 @@ class PluginInstallCommand extends Command
             return self::FAILURE;
         }
 
+        // Auto-merge plugin translations into main app lang/ directory if present
+        $this->mergeTranslations($plugin);
+
         $this->components->info("Plugin <comment>{$slug}</comment> installed successfully!");
         $this->line('');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Merge JSON translations from plugin into core lang/{locale}.json
+     */
+    protected function mergeTranslations($plugin): void
+    {
+        $translationPaths = method_exists($plugin, 'getTranslationPaths') ? $plugin->getTranslationPaths() : [];
+        foreach ($translationPaths as $langDir) {
+            if (! is_dir($langDir)) {
+                continue;
+            }
+
+            $jsonFiles = glob($langDir . DIRECTORY_SEPARATOR . '*.json');
+            foreach ($jsonFiles as $file) {
+                $locale   = basename($file, '.json');
+                $mainFile = base_path("lang/{$locale}.json");
+
+                $pluginData = json_decode(file_get_contents($file), true) ?? [];
+                if (empty($pluginData)) {
+                    continue;
+                }
+
+                $mainData = file_exists($mainFile) ? (json_decode(file_get_contents($mainFile), true) ?? []) : [];
+                $merged   = array_merge($mainData, $pluginData);
+
+                file_put_contents($mainFile, json_encode($merged, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                $this->line("  🌐 Merged <comment>" . count($pluginData) . "</comment> translations into <comment>lang/{$locale}.json</comment>");
+            }
+        }
     }
 }

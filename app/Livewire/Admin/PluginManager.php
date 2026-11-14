@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin;
 
 use App\Contracts\PluginContract;
+use App\Services\UpdateManagerService;
 use App\Support\PluginManager as PluginManagerService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
@@ -42,6 +43,12 @@ class PluginManager extends Component
     public ?string $successMessage = null;
     public ?string $errorMessage = null;
 
+    // Update & Changelog Engine state
+    public array $coreUpdateInfo = [];
+    public bool $showChangelogModal = false;
+    public ?array $activeChangelog = null;
+    public bool $isApplyingUpdate = false;
+
     public function mount(): void
     {
         if (! hasAccess(['Super Admin'], ['plugin-manager', 'site-setup'])) {
@@ -49,12 +56,26 @@ class PluginManager extends Component
                 abort(403, 'Unauthorized access to Plugin Manager.');
             }
         }
+
+        $this->checkUpdates(false);
+    }
+
+    public function checkUpdates(bool $force = true): void
+    {
+        $updateService = app(UpdateManagerService::class);
+        $this->coreUpdateInfo = $updateService->checkCoreUpdate($force);
+
+        if ($force) {
+            $this->successMessage = __('Checked for updates successfully.');
+        }
     }
 
     public function getPluginsProperty(): array
     {
         /** @var PluginManagerService $manager */
         $manager = app(PluginManagerService::class);
+        /** @var UpdateManagerService $updateService */
+        $updateService = app(UpdateManagerService::class);
 
         $plugins = [];
         foreach ($manager->all() as $plugin) {
@@ -64,6 +85,7 @@ class PluginManager extends Component
 
             $requiresLicense = $plugin->requiresLicense();
             $licenseValid = $manager->validateLicense($plugin);
+            $updateInfo = $updateService->checkPluginUpdate($slug);
 
             $plugins[] = [
                 'id'               => $slug,
@@ -80,6 +102,7 @@ class PluginManager extends Component
                 'has_routes'       => ! empty($plugin->getRouteFiles()),
                 'is_git_repo'      => is_dir(base_path("plugins/{$slug}/.git")),
                 'filament_pages'   => count($plugin->getFilamentPages()),
+                'update_info'      => $updateInfo,
             ];
         }
 
@@ -271,6 +294,95 @@ class PluginManager extends Component
         } else {
             $this->errorMessage = "Git pull failed: " . trim($output);
         }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // 5. GitHub Release & Changelog Update Engine
+    // ──────────────────────────────────────────────────────────────────────────
+    public function openPluginChangelog(string $slug): void
+    {
+        $updateService = app(UpdateManagerService::class);
+        $updateInfo = $updateService->checkPluginUpdate($slug);
+
+        $manager = app(PluginManagerService::class);
+        $plugin  = $manager->get($slug);
+
+        $this->activeChangelog = [
+            'type'            => 'plugin',
+            'slug'            => $slug,
+            'name'            => $plugin ? $plugin->getName() : $slug,
+            'current_version' => $updateInfo['current_version'] ?? '1.0.0',
+            'latest_version'  => $updateInfo['latest_version'] ?? '1.0.0',
+            'release_name'    => $updateInfo['release_name'] ?? 'Latest Release',
+            'release_date'    => $updateInfo['release_date'] ?? '-',
+            'changelog_html'  => $updateInfo['changelog_html'] ?? '<p>No changelog details provided.</p>',
+            'html_url'        => $updateInfo['html_url'] ?? '',
+        ];
+
+        $this->showChangelogModal = true;
+    }
+
+    public function openCoreChangelog(): void
+    {
+        $updateService = app(UpdateManagerService::class);
+        $updateInfo = $this->coreUpdateInfo ?: $updateService->checkCoreUpdate();
+
+        $this->activeChangelog = [
+            'type'            => 'core',
+            'slug'            => 'core',
+            'name'            => 'ISP Mikrotik Billing Core',
+            'current_version' => $updateInfo['current_version'] ?? '2.0.0',
+            'latest_version'  => $updateInfo['latest_version'] ?? '2.0.0',
+            'release_name'    => $updateInfo['release_name'] ?? 'Latest Release',
+            'release_date'    => $updateInfo['release_date'] ?? '-',
+            'changelog_html'  => $updateInfo['changelog_html'] ?? '<p>No changelog details provided.</p>',
+            'html_url'        => $updateInfo['html_url'] ?? '',
+        ];
+
+        $this->showChangelogModal = true;
+    }
+
+    public function closeChangelogModal(): void
+    {
+        $this->showChangelogModal = false;
+        $this->activeChangelog = null;
+        $this->isApplyingUpdate = false;
+    }
+
+    public function applyUpdate(): void
+    {
+        if (empty($this->activeChangelog)) {
+            return;
+        }
+
+        $this->resetMessages();
+        $this->isApplyingUpdate = true;
+        $updateService = app(UpdateManagerService::class);
+
+        if ($this->activeChangelog['type'] === 'core') {
+            $result = $updateService->performCoreUpdate();
+            $this->consoleOutput = $result['output'] ?? '';
+
+            if ($result['success']) {
+                $this->successMessage = $result['message'];
+                $this->checkUpdates(true);
+            } else {
+                $this->errorMessage = $result['message'];
+            }
+        } elseif ($this->activeChangelog['type'] === 'plugin') {
+            $slug = $this->activeChangelog['slug'];
+            $result = $updateService->performPluginUpdate($slug);
+            $this->consoleOutput = $result['output'] ?? '';
+
+            if ($result['success']) {
+                $this->successMessage = $result['message'];
+                $this->checkUpdates(true);
+            } else {
+                $this->errorMessage = $result['message'];
+            }
+        }
+
+        $this->closeChangelogModal();
     }
 
     // ──────────────────────────────────────────────────────────────────────────

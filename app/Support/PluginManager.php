@@ -154,6 +154,18 @@ class PluginManager
                     }
                 }
 
+                // Register translation paths (JSON & namespaced PHP language files)
+                if (method_exists($plugin, 'getTranslationPaths')) {
+                    foreach ($plugin->getTranslationPaths() as $langPath) {
+                        if (is_dir($langPath)) {
+                            // 1. JSON translations: __('Key') reads from $langPath/{locale}.json
+                            $app['translator']->addJsonPath($langPath);
+                            // 2. Namespaced PHP files: __('plugin-slug::messages.key')
+                            $app['translator']->addNamespace($plugin->getId(), $langPath);
+                        }
+                    }
+                }
+
                 // Register migration paths (picked up by `php artisan migrate`)
                 if (config('plugins.auto_migrate', true)) {
                     foreach ($plugin->getMigrationPaths() as $migrationPath) {

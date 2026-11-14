@@ -100,6 +100,14 @@ interface PluginContract
     public function getViewNamespaces(): array;
 
     /**
+     * Return translation directories to register.
+     * Format: ['/path/to/lang']
+     *
+     * @return array<string>
+     */
+    public function getTranslationPaths(): array;
+
+    /**
      * Return config files to merge.
      * Format: ['/path/to/config.php' => 'config-key']
      *

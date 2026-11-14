@@ -80,6 +80,16 @@ class CustomersInfo extends Model
         return $this->hasMany(PaymentSummary::class, 'customer_payment_unique_id', 'customer_unique_id');
     }
 
+    public function inventoryAssignments()
+    {
+        return $this->hasMany(\Plugins\InventoryManager\Models\InventoryAssignment::class, 'customer_id');
+    }
+
+    public function activeAssignedItems()
+    {
+        return $this->hasMany(\Plugins\InventoryManager\Models\InventoryItem::class, 'assigned_customer_id')->where('status', 'deployed');
+    }
+
     public function collectionSummary()
     {
         return $this->hasMany(CollectionSummary::class, 'customer_collection_unique_id', 'customer_unique_id');

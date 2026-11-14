@@ -27,6 +27,15 @@ class PluginServiceProvider extends ServiceProvider
         // Boot all plugins (this triggers registerHooks() in each plugin)
         $manager->bootAll($this->app);
 
+        // Register plugin console commands
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                \App\Console\Commands\PluginInstallCommand::class,
+                \App\Console\Commands\PluginListCommand::class,
+                \App\Console\Commands\PluginMakeCommand::class,
+            ]);
+        }
+
         // Register plugin pages/resources/widgets into the Filament panel
         $this->registerFilamentExtensions($manager);
     }

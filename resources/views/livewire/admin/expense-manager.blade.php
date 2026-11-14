@@ -129,11 +129,45 @@
                                     @elseif($expense->description)
                                         <div class="text-muted" style="font-size:0.75rem;">{{ Str::limit($expense->description, 55) }}</div>
                                     @endif
+
+                                    @if($expense->category === 'item_purchase')
+                                        @php
+                                            $invSummary = $expense->inventory_summary;
+                                        @endphp
+                                        <div class="mt-1">
+                                            @if($invSummary['tracked'])
+                                                <button type="button" wire:click="viewExpenseInventory({{ $expense->id }})"
+                                                    class="btn btn-xs rounded-pill px-2 py-0 border text-dark bg-white shadow-2xs d-inline-flex align-items-center gap-1"
+                                                    style="font-size: 0.70rem;" title="{{ __('View inventory details and deployment history') }}">
+                                                    <i class="bi bi-box-seam text-primary"></i>
+                                                    <span class="fw-semibold text-success">{{ $invSummary['in_stock'] }} In Stock</span>
+                                                    @if($invSummary['deployed'] > 0)
+                                                        &bull; <span class="text-primary">{{ $invSummary['deployed'] }} Deployed</span>
+                                                    @endif
+                                                    @if($invSummary['damaged'] > 0)
+                                                        &bull; <span class="text-danger fw-bold">{{ $invSummary['damaged'] }} Damaged</span>
+                                                    @endif
+                                                </button>
+                                            @else
+                                                <button type="button" wire:click="openTrackInventory({{ $expense->id }})"
+                                                    class="btn btn-xs btn-outline-primary rounded-pill px-2 py-0 d-inline-flex align-items-center gap-1"
+                                                    style="font-size: 0.70rem;" title="{{ __('Add items from this expense into inventory stock') }}">
+                                                    <i class="bi bi-plus-circle"></i> {{ __('Track in Inventory') }}
+                                                </button>
+                                            @endif
+                                        </div>
+                                    @endif
                                 </td>
                                 <td class="text-muted small">{{ $expense->reference_no ?? '—' }}</td>
                                 <td class="small text-muted">{{ $expense->addedBy?->name ?? '—' }}</td>
                                 <td class="text-end fw-bold text-danger">৳{{ number_format($expense->amount, 2) }}</td>
                                 <td class="text-end pe-4">
+                                    @if($expense->category === 'item_purchase')
+                                        <button wire:click="viewExpenseInventory({{ $expense->id }})"
+                                            class="btn btn-sm btn-outline-info rounded-3 me-1 py-1 px-2" title="{{ __('View Inventory Lifecycle') }}">
+                                            <i class="bi bi-boxes"></i>
+                                        </button>
+                                    @endif
                                     <button wire:click="triggerPrint({{ $expense->id }})"
                                         class="btn btn-sm btn-outline-success rounded-3 me-1 py-1 px-2" title="{{ __('Print Voucher') }}">
                                         <i class="bi bi-printer"></i>
@@ -200,6 +234,102 @@
                             <input wire:model="expense_date" type="date" class="form-control rounded-3 @error('expense_date') is-invalid @enderror">
                             @error('expense_date')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
+
+                        {{-- ── Item Purchase: Direct Inventory Tracking ── --}}
+                        @if($category === 'item_purchase' && !$editId)
+                        <div class="col-12">
+                            <div class="card border rounded-3 p-3 bg-light border-primary border-opacity-25 shadow-2xs">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <div class="fw-bold text-primary small d-flex align-items-center">
+                                            <i class="bi bi-box-seam me-2 fs-6"></i>
+                                            {{ __('Direct Inventory Stock Tracking') }}
+                                        </div>
+                                        <div class="text-muted" style="font-size: 11px;">
+                                            {{ __('Automatically add purchased equipment directly into Inventory & Stock Catalog.') }}
+                                        </div>
+                                    </div>
+                                    <div class="form-check form-switch mb-0">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="autoTrackInvCheck" wire:model.live="autoTrackInventory">
+                                    </div>
+                                </div>
+
+                                @if($autoTrackInventory)
+                                <div class="row g-2 mt-2 pt-2 border-top">
+                                    {{-- Inventory Category --}}
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold mb-1">{{ __('Inventory Category') }} <span class="text-danger">*</span></label>
+                                        <select wire:model.live="invCategoryId" class="form-select form-select-sm rounded-3">
+                                            @foreach($inventoryCategories as $icat)
+                                                <option value="{{ $icat->id }}">{{ $icat->name }} ({{ ucfirst($icat->tracking_type) }})</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+
+                                    {{-- Tracking Method --}}
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold mb-1">{{ __('Tracking Method') }}</label>
+                                        <select wire:model.live="invTrackingType" class="form-select form-select-sm rounded-3">
+                                            <option value="serialized">{{ __('Serialized (Routers, ONUs, Switches)') }}</option>
+                                            <option value="bulk">{{ __('Bulk Stock (Quantity/Meters - Cables, RJ45)') }}</option>
+                                        </select>
+                                    </div>
+
+                                    {{-- Brand & Model --}}
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold mb-1">{{ __('Brand / Manufacturer') }}</label>
+                                        <input type="text" wire:model="invBrand" class="form-control form-control-sm rounded-3" placeholder="{{ __('e.g. TP-Link, BDCOM, Cisco') }}">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold mb-1">{{ __('Model No') }}</label>
+                                        <input type="text" wire:model="invModel" class="form-control form-control-sm rounded-3" placeholder="{{ __('e.g. Archer C6, EPON V2') }}">
+                                    </div>
+
+                                    {{-- Quantity & Serials --}}
+                                    @if($invTrackingType === 'serialized')
+                                        <div class="col-12">
+                                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                                <label class="form-label small fw-semibold mb-0">
+                                                    {{ __('Serial Numbers (Optional - One per line or comma-separated)') }}
+                                                </label>
+                                                <span class="badge bg-primary rounded-pill px-2" style="font-size: 10px;">
+                                                    {{ $invQuantity }} {{ __('Item(s)') }}
+                                                </span>
+                                            </div>
+                                            <textarea wire:model.live.debounce.300ms="invSerials" rows="3" class="form-control form-control-sm font-monospace rounded-3" placeholder="S/N-001&#10;S/N-002&#10;S/N-003"></textarea>
+                                            <div class="d-flex justify-content-between align-items-center mt-1">
+                                                <small class="text-muted" style="font-size: 10px;">{{ __('Leave blank or enter quantity below to add without serial numbers now.') }}</small>
+                                                <div class="d-flex align-items-center gap-1">
+                                                    <span class="small text-muted" style="font-size: 10px;">{{ __('Total Qty:') }}</span>
+                                                    <input type="number" wire:model.live="invQuantity" min="1" class="form-control form-control-sm py-0 px-2 text-center rounded-2" style="width: 65px; height: 24px;">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @else
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold mb-1">{{ __('Stock Quantity') }} <span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" min="0.01" wire:model="invQuantity" class="form-control form-control-sm rounded-3" placeholder="100">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold mb-1">{{ __('Supplier / Vendor') }}</label>
+                                            <input type="text" wire:model="invSupplier" class="form-control form-control-sm rounded-3" placeholder="{{ __('e.g. Star Tech, Multiplan') }}">
+                                        </div>
+                                    @endif
+
+                                    {{-- Storage Location & Warranty --}}
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold mb-1">{{ __('Initial Storage Location') }}</label>
+                                        <input type="text" wire:model="invLocation" class="form-control form-control-sm rounded-3" placeholder="Main Store">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold mb-1">{{ __('Warranty (Months)') }}</label>
+                                        <input type="number" min="0" wire:model="invWarrantyMonths" class="form-control form-control-sm rounded-3" placeholder="12">
+                                    </div>
+                                </div>
+                                @endif
+                            </div>
+                        </div>
+                        @endif
 
                         {{-- ── Employee Salary: live-search user ── --}}
                         @if($category === 'employee_salary')
@@ -524,6 +654,56 @@
                                                     </div>
                                                 </div>
                                             </div>
+                                            @if($printExpense->category === 'item_purchase' && $printExpense->inventoryItems->isNotEmpty())
+                                                <div class="row px-4 pt-2 mb-3">
+                                                    <div class="col-12">
+                                                        <div class="text-dark fw-bold mb-1 d-flex align-items-center small">
+                                                            <i class="bi bi-box-seam text-primary me-2"></i>
+                                                            {{ __('Purchased Inventory Equipment Linked with this Voucher:') }}
+                                                        </div>
+                                                        <div class="table-responsive">
+                                                            <table class="table table-sm table-bordered small mb-0" style="font-size: 11px;">
+                                                                <thead class="table-light">
+                                                                    <tr>
+                                                                        <th style="width: 30px;">#</th>
+                                                                        <th>{{ __('Item / Model') }}</th>
+                                                                        <th>{{ __('Category') }}</th>
+                                                                        <th>{{ __('Serial Number / MAC') }}</th>
+                                                                        <th>{{ __('Qty') }}</th>
+                                                                        <th>{{ __('Current Status') }}</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    @foreach($printExpense->inventoryItems as $pIdx => $pItem)
+                                                                        <tr>
+                                                                            <td>{{ $pIdx + 1 }}</td>
+                                                                            <td class="fw-bold">{{ $pItem->title }}</td>
+                                                                            <td>{{ $pItem->category?->name ?? '—' }}</td>
+                                                                            <td>
+                                                                                @if($pItem->serial_number)
+                                                                                    <code>{{ $pItem->serial_number }}</code>
+                                                                                @elseif($pItem->mac_address)
+                                                                                    <small>{{ $pItem->mac_address }}</small>
+                                                                                @else
+                                                                                    <span class="text-muted">—</span>
+                                                                                @endif
+                                                                            </td>
+                                                                            <td>{{ $pItem->quantity }} {{ $pItem->category?->unit ?? 'pcs' }}</td>
+                                                                            <td>
+                                                                                <span class="badge badge-subtle-{{ $pItem->status_color }} rounded-pill px-2.5 py-1">{{ $pItem->status_label }}</span>
+                                                                                @if($pItem->current_location_name)
+                                                                                    <small class="text-muted ms-1">({{ $pItem->current_location_name }})</small>
+                                                                                @endif
+                                                                            </td>
+                                                                        </tr>
+                                                                    @endforeach
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @endif
+
                                             <div class="row p-4 pt-0">
                                                 <div class="text-dark fw-bold">{{ __('Terms & Conditions:') }}</div>
                                                 <ul>
@@ -563,6 +743,255 @@
                     </button>
                 </div>
 
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- ── 1. View Expense Inventory Lifecycle Modal ────────────────────── --}}
+    @if($showExpenseInventoryModal && $inventoryModalExpense)
+    <div class="modal fade show" tabindex="-1" style="display: block; background: rgba(0,0,0,0.55);" aria-modal="true" role="dialog">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="modal-header border-0 pb-0 px-4 pt-4">
+                    <div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 py-1 text-xs">
+                                <i class="bi bi-box-seam me-1"></i> {{ __('Purchased Equipment Lifecycle') }}
+                            </span>
+                            <span class="text-muted small">Ref: {{ $inventoryModalExpense->reference_no }}</span>
+                        </div>
+                        <h5 class="modal-title fw-bold mt-1 text-dark">{{ $inventoryModalExpense->title }}</h5>
+                        <div class="text-muted small">
+                            <span>{{ __('Purchase Date') }}: <strong>{{ $inventoryModalExpense->expense_date->format('d M Y') }}</strong></span> &bull;
+                            <span>{{ __('Expense Amount') }}: <strong class="text-danger">৳{{ number_format($inventoryModalExpense->amount, 2) }}</strong></span>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" wire:click="closeExpenseInventory"></button>
+                </div>
+
+                <div class="modal-body px-4 py-3">
+                    {{-- Summary Metric Counters --}}
+                    @php
+                        $totQty = $expenseInventoryItems->sum('quantity');
+                        $inStock = $expenseInventoryItems->where('status', 'in_stock')->sum('quantity');
+                        $deployed = $expenseInventoryItems->where('status', 'deployed')->sum('quantity');
+                        $damaged = $expenseInventoryItems->where('status', 'damaged')->sum('quantity');
+                        $underRepair = $expenseInventoryItems->where('status', 'under_repair')->sum('quantity');
+                    @endphp
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3">
+                            <div class="p-3 rounded-4 bg-light border text-center">
+                                <div class="text-muted text-xs text-uppercase fw-semibold mb-1">{{ __('Total Units') }}</div>
+                                <h4 class="fw-bold mb-0 text-dark">{{ $totQty }}</h4>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="p-3 rounded-4 bg-success-subtle border border-success-subtle text-center">
+                                <div class="text-success text-xs text-uppercase fw-semibold mb-1">{{ __('In Stock (Available)') }}</div>
+                                <h4 class="fw-bold mb-0 text-success">{{ $inStock }}</h4>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="p-3 rounded-4 bg-primary-subtle border border-primary-subtle text-center">
+                                <div class="text-primary text-xs text-uppercase fw-semibold mb-1">{{ __('Deployed (To Customers)') }}</div>
+                                <h4 class="fw-bold mb-0 text-primary">{{ $deployed }}</h4>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="p-3 rounded-4 bg-danger-subtle border border-danger-subtle text-center">
+                                <div class="text-danger text-xs text-uppercase fw-semibold mb-1">{{ __('Damaged / Nosto') }}</div>
+                                <h4 class="fw-bold mb-0 text-danger">{{ $damaged + $underRepair }}</h4>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Items Details Table --}}
+                    @if($expenseInventoryItems->isEmpty())
+                        <div class="text-center py-5">
+                            <i class="bi bi-box-seam fs-1 text-muted d-block mb-2"></i>
+                            <h6 class="text-muted">{{ __('No inventory stock items have been linked to this expense yet.') }}</h6>
+                            <button type="button" wire:click="openTrackInventory({{ $inventoryModalExpense->id }})" class="btn btn-primary rounded-3 px-4 mt-2">
+                                <i class="bi bi-plus-lg me-1"></i> {{ __('Track in Inventory Stock Now') }}
+                            </button>
+                        </div>
+                    @else
+                        <div class="table-responsive rounded-3 border">
+                            <table class="table table-hover align-middle mb-0 text-sm">
+                                <thead class="table-light">
+                                    <tr class="text-muted text-xs text-uppercase">
+                                        <th class="ps-3 py-2.5">#</th>
+                                        <th>{{ __('Item / Identifiers') }}</th>
+                                        <th>{{ __('Stock Status') }}</th>
+                                        <th>{{ __('Where Used / Assigned Customer') }}</th>
+                                        <th>{{ __('Withdraw Date / Tech') }}</th>
+                                        <th>{{ __('Condition / Notes') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($expenseInventoryItems as $idx => $invItem)
+                                        @php
+                                            $activeAssign = $invItem->assignments->first();
+                                        @endphp
+                                        <tr>
+                                            <td class="ps-3 text-muted">{{ $idx + 1 }}</td>
+                                            <td>
+                                                <div class="fw-bold text-dark">{{ $invItem->title }}</div>
+                                                <div class="text-muted text-xs">
+                                                    @if($invItem->serial_number)
+                                                        <span class="badge bg-light text-dark border">SN: <code>{{ $invItem->serial_number }}</code></span>
+                                                    @endif
+                                                    @if($invItem->mac_address)
+                                                        <span class="ms-1 text-muted">MAC: <code>{{ $invItem->mac_address }}</code></span>
+                                                    @endif
+                                                </div>
+                                            </td>
+                                            <td>
+                                                @php
+                                                    $stBadge = [
+                                                        'in_stock'     => 'badge-subtle-success',
+                                                        'deployed'     => 'badge-subtle-primary',
+                                                        'damaged'      => 'badge-subtle-danger',
+                                                        'under_repair' => 'badge-subtle-warning',
+                                                    ][$invItem->status] ?? 'badge-subtle-secondary';
+                                                @endphp
+                                                <span class="badge {{ $stBadge }} rounded-pill px-2.5 py-1 text-xs fw-semibold">
+                                                    {{ $invItem->status_label }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                @if($invItem->status === 'deployed')
+                                                    @if($invItem->customer)
+                                                        <div class="fw-semibold text-primary">
+                                                            <i class="bi bi-person-fill me-1"></i>{{ $invItem->customer->customer_name }}
+                                                            <span class="text-muted">({{ $invItem->customer->customer_unique_id }})</span>
+                                                        </div>
+                                                        <div class="text-muted text-xs">{{ $invItem->customer->address }}</div>
+                                                    @else
+                                                        <div class="fw-semibold text-dark"><i class="bi bi-geo-alt me-1 text-danger"></i>{{ $invItem->current_location_name }}</div>
+                                                    @endif
+                                                @elseif($invItem->status === 'in_stock')
+                                                    <span class="text-muted"><i class="bi bi-building me-1"></i>{{ $invItem->current_location_name }}</span>
+                                                @elseif($invItem->status === 'damaged')
+                                                    <span class="text-danger fw-semibold"><i class="bi bi-exclamation-triangle-fill me-1"></i>{{ __('Damaged / Faulty') }}</span>
+                                                @endif
+                                            </td>
+                                            <td>
+                                                @if($activeAssign)
+                                                    <div><i class="bi bi-calendar-event me-1 text-muted"></i>{{ $activeAssign->withdraw_date?->format('d M Y') ?? '—' }}</div>
+                                                    @if($activeAssign->technician)
+                                                        <div class="text-muted text-xs"><i class="bi bi-wrench me-1"></i>{{ $activeAssign->technician->name }}</div>
+                                                    @endif
+                                                @else
+                                                    <span class="text-muted">—</span>
+                                                @endif
+                                            </td>
+                                            <td>
+                                                @if($invItem->status === 'damaged')
+                                                    <div class="text-danger small">
+                                                        <strong>{{ $invItem->damage_type ?? 'Nosto' }}:</strong> {{ Str::limit($invItem->notes, 60) }}
+                                                    </div>
+                                                @else
+                                                    <div class="text-muted small">{{ Str::limit($invItem->notes, 60) ?: '—' }}</div>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
+                </div>
+
+                <div class="modal-footer border-0 px-4 py-3" style="background:#f8f9fc;">
+                    <a href="{{ route('admin.inventory.items') }}" class="btn btn-outline-primary rounded-3 px-3">
+                        <i class="bi bi-box-arrow-up-right me-1"></i> {{ __('Open Inventory Manager') }}
+                    </a>
+                    <button type="button" wire:click="closeExpenseInventory" class="btn btn-light rounded-3 px-4">{{ __('Close') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- ── 2. Track in Inventory Stock Modal ────────────────────────────── --}}
+    @if($showTrackModal)
+    <div class="modal fade show" tabindex="-1" style="display: block; background: rgba(0,0,0,0.55);" aria-modal="true" role="dialog">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="modal-header border-0 pb-0 px-4 pt-4">
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark"><i class="bi bi-box-seam text-primary me-2"></i>{{ __('Add Expense Items to Inventory Stock') }}</h5>
+                        <p class="text-muted small mb-0">{{ __('Create inventory records from this purchase to track customer deployment and damage.') }}</p>
+                    </div>
+                    <button type="button" class="btn-close" wire:click="closeTrackModal"></button>
+                </div>
+
+                <div class="modal-body px-4 py-3">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-dark">{{ __('Item Category') }} <span class="text-danger">*</span></label>
+                            <select wire:model.live="trackCategoryId" class="form-select rounded-3">
+                                @foreach($inventoryCategories as $cat)
+                                    <option value="{{ $cat->id }}">{{ $cat->name }} ({{ $cat->unit }})</option>
+                                @endforeach
+                            </select>
+                            @error('trackCategoryId') <span class="text-danger text-xs">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-dark">{{ __('Tracking Type') }} <span class="text-danger">*</span></label>
+                            <select wire:model.live="trackTrackingType" class="form-select rounded-3">
+                                <option value="serialized">{{ __('Serialized (ONU, Router, Switch with unique SN)') }}</option>
+                                <option value="bulk">{{ __('Bulk Stock (Cable meters, Connectors, Patch cords)') }}</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold text-dark">{{ __('Quantity / Units') }} <span class="text-danger">*</span></label>
+                            <input type="number" step="any" wire:model="trackQuantity" class="form-control rounded-3" placeholder="e.g. 10">
+                            @error('trackQuantity') <span class="text-danger text-xs">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold text-dark">{{ __('Brand / Make') }}</label>
+                            <input type="text" wire:model="trackBrand" class="form-control rounded-3" placeholder="e.g. BDCOM, TP-Link">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold text-dark">{{ __('Model No') }}</label>
+                            <input type="text" wire:model="trackModel" class="form-control rounded-3" placeholder="e.g. GPON ONU 1000R">
+                        </div>
+
+                        @if($trackTrackingType === 'serialized')
+                        <div class="col-12">
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                <label class="form-label small fw-semibold text-dark mb-0">{{ __('Serial Numbers (Paste or Scan)') }}</label>
+                                <span class="text-muted text-xs">{{ __('One serial number per line (Optional — if blank, auto-generates unit slots)') }}</span>
+                            </div>
+                            <textarea wire:model="trackSerialNumbers" rows="4" class="form-control font-monospace rounded-3"
+                                placeholder="SN123456789&#10;SN123456790&#10;SN123456791"></textarea>
+                        </div>
+                        @endif
+
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-dark">{{ __('Supplier / Vendor') }}</label>
+                            <input type="text" wire:model="trackSupplier" class="form-control rounded-3" placeholder="e.g. Smart Technologies Ltd">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-dark">{{ __('Warranty (Months)') }}</label>
+                            <input type="number" wire:model="trackWarrantyMonths" class="form-control rounded-3" placeholder="e.g. 12 or 24">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-0 px-4 py-3" style="background:#f8f9fc;">
+                    <button type="button" wire:click="closeTrackModal" class="btn btn-light rounded-3 px-4">{{ __('Cancel') }}</button>
+                    <button type="button" wire:click="submitTrackInventory" class="btn btn-primary rounded-3 px-4 fw-semibold shadow-sm">
+                        <i class="bi bi-check-lg me-1"></i> {{ __('Save to Inventory Stock') }}
+                    </button>
+                </div>
             </div>
         </div>
     </div>

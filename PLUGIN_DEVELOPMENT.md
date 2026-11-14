@@ -178,16 +178,18 @@ class Plugin extends AbstractPlugin
 #### Supported Navigation Item Attributes:
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `parent` | `string` | `null` | **Placement in existing menus**. Use `'mikrotik'`, `'billing'`, `'collections'`, or `'sms'` to inject directly inside that existing dropdown. |
-| `section` | `string` | `'Plugin Extensions'` | **Custom Section Header**. When no `parent` is given, groups your items under this stylish uppercase section heading. |
-| `title` | `string` | *required* | The text label displayed in the sidebar menu. |
-| `icon` | `string` | `'bi bi-puzzle'` | Bootstrap Icon class (e.g. `bi bi-router`, `bi bi-hdd-network`, `bi bi-diagram-3`). |
-| `url` | `string` | *optional* | Direct web URL path (e.g. `/my-plugin/dashboard`). |
-| `route` | `string` | *optional* | Laravel named route (e.g. `my-plugin.index`). |
-| `children`| `array` | `[]` | Nested sub-items list. Automatically renders as an expandable Bootstrap 5 collapse dropdown with rotating chevron arrow! |
+| `parent` | `string` | `null` | **Universal Placement across ALL Menus & Navbar**. Inject directly into any section or dropdown: <br>• `'finance'` or `'expenses'` / `'accounts'` (Finance & Expense Management)<br>• `'mikrotik'` or `'network'` / `'router'` (MikroTik section)<br>• `'mikrotik_setup'` (Inside MikroTik Setup dropdown)<br>• `'customers'` or `'clients'` / `'tickets'` (Customers section)<br>• `'billing'` or `'collections'` / `'payments'` (Collections & Invoicing)<br>• `'reports'` or `'analytics'` (Reports section & dropdown)<br>• `'admin'` or `'setup'` / `'system'` (Admin section & dropdown)<br>• `'logs'` or `'audits'` (Logs & Audits dropdown)<br>• `'sms'` or `'notifications'` (SMS Management dropdown)<br>• `'dashboard'` or `'home'` (Dashboard)<br>• `'reseller_customers'`, `'reseller_billing'`, `'reseller_account'`, `'reseller_setup'` (Reseller Panel) |
+| `section` | `string` | `'Plugin Extensions'` | **Custom Section Header**. When no `parent` is given (or a custom parent is used), groups your items under this stylish section heading in the sidebar, and creates a top-level dropdown in the top navbar. |
+| `title` | `string` | *required* | The text label displayed in the menu. |
+| `icon` | `string` | `'bi bi-puzzle'` | Bootstrap Icon class (e.g. `bi bi-boxes`, `bi bi-router`, `bi bi-diagram-3`). |
+| `url` | `string` | *optional* | Direct web URL path (e.g. `/inventory/dashboard`). |
+| `route` | `string` | *optional* | Laravel named route (e.g. `admin.inventory.dashboard`). Automatically resolved. |
+| `children`| `array` | `[]` | Nested sub-items list. Automatically renders as an expandable Bootstrap 5 collapse dropdown in the sidebar and grouped submenu in the top navbar! |
 | `badge` | `string` | `null` | Optional pill badge shown on the right (e.g. `'New'`, `'Live'`, `'Pro'`). |
 | `permission`| `string` | `null` | Optional Spatie permission slug required to view this item. |
-| `roles` | `array` | `[]` | Optional list of allowed roles (e.g. `['admin', 'manager']`). |
+| `roles` | `array` | `[]` | Optional list of allowed roles (e.g. `['Admin', 'Manager', 'Staff']`). |
+| `show_in_sidebar` | `bool` | `true` | Set to `false` if the item should only appear in top navbar. |
+| `show_in_navbar` | `bool` | `true` | Set to `false` if the item should only appear in the sidebar. |
 
 ---
 

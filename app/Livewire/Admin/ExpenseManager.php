@@ -44,9 +44,39 @@ class ExpenseManager extends Component
 
     public bool $showModal = false;
 
+    // Direct Inventory Integration when creating Expense
+    public bool $autoTrackInventory = true;
+    public ?int $invCategoryId = null;
+    public string $invTrackingType = 'serialized';
+    public float $invQuantity = 1;
+    public string $invBrand = '';
+    public string $invModel = '';
+    public string $invSerials = '';
+    public string $invSupplier = '';
+    public int $invWarrantyMonths = 0;
+    public string $invLocation = 'Main Store';
+
+    // Inventory Lifecycle Modal
+    public bool $showExpenseInventoryModal = false;
+    public ?IspExpense $inventoryModalExpense = null;
+    public Collection $expenseInventoryItems;
+
+    // Track Inventory from Expense Modal
+    public bool $showTrackModal = false;
+    public ?int $trackExpenseId = null;
+    public ?int $trackCategoryId = null;
+    public string $trackTrackingType = 'serialized';
+    public float $trackQuantity = 1;
+    public string $trackSerialNumbers = '';
+    public string $trackBrand = '';
+    public string $trackModel = '';
+    public string $trackSupplier = '';
+    public int $trackWarrantyMonths = 0;
+
     public function boot(): void
     {
         $this->userSuggestions = collect();
+        $this->expenseInventoryItems = collect();
     }
 
     public function mount(): void
@@ -64,7 +94,43 @@ class ExpenseManager extends Component
         $this->category        = 'item_purchase';
         $this->expense_date    = now()->format('Y-m-d');
         $this->userSuggestions = collect();
+
+        $firstCat = class_exists(\Plugins\InventoryManager\Models\InventoryCategory::class)
+            ? \Plugins\InventoryManager\Models\InventoryCategory::first()
+            : null;
+        $this->invCategoryId     = $firstCat?->id;
+        $this->invTrackingType   = $firstCat?->tracking_type ?? 'serialized';
+        $this->autoTrackInventory = true;
+        $this->invQuantity       = 1;
+        $this->invBrand          = '';
+        $this->invModel          = '';
+        $this->invSerials        = '';
+        $this->invSupplier       = '';
+        $this->invWarrantyMonths = 0;
+        $this->invLocation       = 'Main Store';
+
         $this->showModal       = true;
+    }
+
+    public function updatedInvCategoryId($val): void
+    {
+        if (class_exists(\Plugins\InventoryManager\Models\InventoryCategory::class)) {
+            $cat = \Plugins\InventoryManager\Models\InventoryCategory::find($val);
+            if ($cat) {
+                $this->invTrackingType = $cat->tracking_type;
+                if ($this->invTrackingType === 'serialized' && empty($this->invSerials)) {
+                    $this->invQuantity = 1;
+                }
+            }
+        }
+    }
+
+    public function updatedInvSerials(): void
+    {
+        $lines = array_filter(array_map('trim', explode("\n", (string) $this->invSerials)));
+        if (!empty($lines)) {
+            $this->invQuantity = count($lines);
+        }
     }
 
     public function openEdit(int $id): void
@@ -186,6 +252,115 @@ class ExpenseManager extends Component
                             $expense->id
                         );
                     }
+
+                    // Direct Inventory Stock Tracking
+                    if ($this->category === 'item_purchase' && $this->autoTrackInventory && $this->invCategoryId && class_exists(\Plugins\InventoryManager\Models\InventoryItem::class)) {
+                        $serials = [];
+                        if ($this->invTrackingType === 'serialized' && !empty(trim($this->invSerials))) {
+                            $serials = array_values(array_filter(array_map('trim', preg_split('/[\r\n,]+/', (string) $this->invSerials))));
+                        }
+
+                        $qty = !empty($serials) ? count($serials) : max(1, (float) $this->invQuantity);
+                        $unitPrice = $qty > 0 ? (float) $this->amount / $qty : (float) $this->amount;
+                        $batchId = 'BATCH-' . strtoupper(\Illuminate\Support\Str::random(8));
+
+                        if ($this->invTrackingType === 'serialized') {
+                            if (!empty($serials)) {
+                                foreach ($serials as $sn) {
+                                    $item = \Plugins\InventoryManager\Models\InventoryItem::create([
+                                        'category_id'           => $this->invCategoryId,
+                                        'batch_id'              => $batchId,
+                                        'expense_id'            => $expense->id,
+                                        'title'                 => $this->title,
+                                        'brand'                 => $this->invBrand ?: null,
+                                        'model_no'              => $this->invModel ?: null,
+                                        'tracking_type'         => 'serialized',
+                                        'serial_number'         => $sn,
+                                        'quantity'              => 1,
+                                        'purchase_price'        => $unitPrice,
+                                        'purchase_date'         => $this->expense_date,
+                                        'supplier'              => $this->invSupplier ?: null,
+                                        'warranty_months'       => $this->invWarrantyMonths,
+                                        'status'                => 'in_stock',
+                                        'current_location_type' => 'warehouse',
+                                        'current_location_name' => $this->invLocation ?: 'Main Store',
+                                        'created_by'            => auth()->id(),
+                                    ]);
+
+                                    \Plugins\InventoryManager\Models\InventoryStockLog::create([
+                                        'item_id'         => $item->id,
+                                        'type'            => 'purchase',
+                                        'quantity_change' => 1,
+                                        'balance_after'   => 1,
+                                        'reference_no'    => $refNo,
+                                        'note'            => "Added to inventory from Expense Ref: {$refNo}",
+                                        'user_id'         => auth()->id(),
+                                    ]);
+                                }
+                            } else {
+                                for ($i = 1; $i <= (int) $qty; $i++) {
+                                    $item = \Plugins\InventoryManager\Models\InventoryItem::create([
+                                        'category_id'           => $this->invCategoryId,
+                                        'batch_id'              => $batchId,
+                                        'expense_id'            => $expense->id,
+                                        'title'                 => $this->title,
+                                        'brand'                 => $this->invBrand ?: null,
+                                        'model_no'              => $this->invModel ?: null,
+                                        'tracking_type'         => 'serialized',
+                                        'serial_number'         => null,
+                                        'quantity'              => 1,
+                                        'purchase_price'        => $unitPrice,
+                                        'purchase_date'         => $this->expense_date,
+                                        'supplier'              => $this->invSupplier ?: null,
+                                        'warranty_months'       => $this->invWarrantyMonths,
+                                        'status'                => 'in_stock',
+                                        'current_location_type' => 'warehouse',
+                                        'current_location_name' => $this->invLocation ?: 'Main Store',
+                                        'created_by'            => auth()->id(),
+                                    ]);
+
+                                    \Plugins\InventoryManager\Models\InventoryStockLog::create([
+                                        'item_id'         => $item->id,
+                                        'type'            => 'purchase',
+                                        'quantity_change' => 1,
+                                        'balance_after'   => 1,
+                                        'reference_no'    => $refNo,
+                                        'note'            => "Added to inventory from Expense Ref: {$refNo}",
+                                        'user_id'         => auth()->id(),
+                                    ]);
+                                }
+                            }
+                        } else {
+                            $item = \Plugins\InventoryManager\Models\InventoryItem::create([
+                                'category_id'           => $this->invCategoryId,
+                                'batch_id'              => $batchId,
+                                'expense_id'            => $expense->id,
+                                'title'                 => $this->title,
+                                'brand'                 => $this->invBrand ?: null,
+                                'model_no'              => $this->invModel ?: null,
+                                'tracking_type'         => 'bulk',
+                                'quantity'              => $qty,
+                                'purchase_price'        => $unitPrice,
+                                'purchase_date'         => $this->expense_date,
+                                'supplier'              => $this->invSupplier ?: null,
+                                'warranty_months'       => $this->invWarrantyMonths,
+                                'status'                => 'in_stock',
+                                'current_location_type' => 'warehouse',
+                                'current_location_name' => $this->invLocation ?: 'Main Store',
+                                'created_by'            => auth()->id(),
+                            ]);
+
+                            \Plugins\InventoryManager\Models\InventoryStockLog::create([
+                                'item_id'         => $item->id,
+                                'type'            => 'purchase',
+                                'quantity_change' => $qty,
+                                'balance_after'   => $qty,
+                                'reference_no'    => $refNo,
+                                'note'            => "Added to inventory from Expense Ref: {$refNo}",
+                                'user_id'         => auth()->id(),
+                            ]);
+                        }
+                    }
                 }
             });
 
@@ -203,18 +378,205 @@ class ExpenseManager extends Component
     {
         abortIfNoAccess(['Super Admin'], []);
 
-        IspExpense::findOrFail($id)->delete();
-        flash()->success('Expense deleted.');
+        $expense = IspExpense::with('inventoryItems')->findOrFail($id);
+
+        $activeDeployed = $expense->inventoryItems()->where('status', 'deployed')->count();
+        if ($activeDeployed > 0) {
+            flash()->error(__("Cannot delete this expense because :count linked inventory item(s) are currently deployed to clients.", ['count' => $activeDeployed]));
+            return;
+        }
+
+        // Clean up in-stock inventory items belonging to this expense
+        $inStock = $expense->inventoryItems()->where('status', 'in_stock')->get();
+        foreach ($inStock as $item) {
+            $item->stockLogs()->delete();
+            $item->delete();
+        }
+
+        $expense->delete();
+        flash()->success(__('Expense and linked in-stock inventory items deleted successfully.'));
     }
 
     public function triggerPrint(int $id): void
     {
-        $this->printExpense = IspExpense::with(['addedBy', 'linkedUser', 'linkedReseller.user'])->findOrFail($id);
+        $this->printExpense = IspExpense::with(['addedBy', 'linkedUser', 'linkedReseller.user', 'inventoryItems.category'])->findOrFail($id);
     }
 
     public function closePrint(): void
     {
         $this->printExpense = null;
+    }
+
+    public function viewExpenseInventory(int $id): void
+    {
+        $this->inventoryModalExpense = IspExpense::with([
+            'inventoryItems.category',
+            'inventoryItems.customer',
+            'inventoryItems.assignedUser',
+            'inventoryItems.assignments.customer',
+            'inventoryItems.assignments.technician',
+        ])->findOrFail($id);
+
+        $this->expenseInventoryItems = $this->inventoryModalExpense->inventoryItems;
+        $this->showExpenseInventoryModal = true;
+    }
+
+    public function closeExpenseInventory(): void
+    {
+        $this->showExpenseInventoryModal = false;
+        $this->inventoryModalExpense = null;
+        $this->expenseInventoryItems = collect();
+    }
+
+    public function openTrackInventory(int $id): void
+    {
+        $expense = IspExpense::findOrFail($id);
+        $this->trackExpenseId = $expense->id;
+        $firstCat = \Plugins\InventoryManager\Models\InventoryCategory::first();
+        $this->trackCategoryId = $firstCat?->id;
+        $this->trackTrackingType = $firstCat?->tracking_type ?? 'serialized';
+        $this->trackQuantity = 1;
+        $this->trackSerialNumbers = '';
+        $this->trackBrand = '';
+        $this->trackModel = '';
+        $this->trackSupplier = '';
+        $this->trackWarrantyMonths = 0;
+        $this->showTrackModal = true;
+    }
+
+    public function closeTrackModal(): void
+    {
+        $this->showTrackModal = false;
+        $this->trackExpenseId = null;
+    }
+
+    public function submitTrackInventory(): void
+    {
+        abortIfNoAccess(['Super Admin', 'Accountant'], ['manage-expenses']);
+
+        $expense = IspExpense::findOrFail($this->trackExpenseId);
+
+        $this->validate([
+            'trackCategoryId'   => 'required|exists:inventory_categories,id',
+            'trackTrackingType' => 'required|in:serialized,bulk',
+            'trackQuantity'     => 'required|numeric|min:1',
+        ]);
+
+        $serials = [];
+        if ($this->trackTrackingType === 'serialized') {
+            if (!empty(trim($this->trackSerialNumbers))) {
+                $serials = array_filter(array_map('trim', explode("\n", $this->trackSerialNumbers)));
+            }
+            $qty = !empty($serials) ? count($serials) : max(1, (int) $this->trackQuantity);
+        } else {
+            $qty = (float) $this->trackQuantity;
+        }
+
+        $unitPrice = $qty > 0 ? (float) $expense->amount / $qty : (float) $expense->amount;
+        $batchId = 'BATCH-' . strtoupper(\Illuminate\Support\Str::random(8));
+
+        DB::transaction(function () use ($expense, $qty, $unitPrice, $batchId, $serials) {
+            if ($this->trackTrackingType === 'serialized') {
+                if (!empty($serials)) {
+                    foreach ($serials as $sn) {
+                        $item = \Plugins\InventoryManager\Models\InventoryItem::create([
+                            'category_id'           => $this->trackCategoryId,
+                            'batch_id'              => $batchId,
+                            'expense_id'            => $expense->id,
+                            'title'                 => $expense->title,
+                            'brand'                 => $this->trackBrand ?: null,
+                            'model_no'              => $this->trackModel ?: null,
+                            'tracking_type'         => 'serialized',
+                            'serial_number'         => $sn,
+                            'quantity'              => 1,
+                            'purchase_price'        => $unitPrice,
+                            'purchase_date'         => $expense->expense_date,
+                            'supplier'              => $this->trackSupplier ?: null,
+                            'warranty_months'       => $this->trackWarrantyMonths,
+                            'status'                => 'in_stock',
+                            'current_location_type' => 'warehouse',
+                            'current_location_name' => 'Main Store',
+                            'created_by'            => auth()->id(),
+                        ]);
+
+                        \Plugins\InventoryManager\Models\InventoryStockLog::create([
+                            'item_id'         => $item->id,
+                            'type'            => 'purchase',
+                            'quantity_change' => 1,
+                            'balance_after'   => 1,
+                            'reference_no'    => $expense->reference_no,
+                            'note'            => "Added to inventory from Expense Ref: {$expense->reference_no}",
+                            'user_id'         => auth()->id(),
+                        ]);
+                    }
+                } else {
+                    for ($i = 1; $i <= $qty; $i++) {
+                        $item = \Plugins\InventoryManager\Models\InventoryItem::create([
+                            'category_id'           => $this->trackCategoryId,
+                            'batch_id'              => $batchId,
+                            'expense_id'            => $expense->id,
+                            'title'                 => $expense->title,
+                            'brand'                 => $this->trackBrand ?: null,
+                            'model_no'              => $this->trackModel ?: null,
+                            'tracking_type'         => 'serialized',
+                            'serial_number'         => null,
+                            'quantity'              => 1,
+                            'purchase_price'        => $unitPrice,
+                            'purchase_date'         => $expense->expense_date,
+                            'supplier'              => $this->trackSupplier ?: null,
+                            'warranty_months'       => $this->trackWarrantyMonths,
+                            'status'                => 'in_stock',
+                            'current_location_type' => 'warehouse',
+                            'current_location_name' => 'Main Store',
+                            'created_by'            => auth()->id(),
+                        ]);
+
+                        \Plugins\InventoryManager\Models\InventoryStockLog::create([
+                            'item_id'         => $item->id,
+                            'type'            => 'purchase',
+                            'quantity_change' => 1,
+                            'balance_after'   => 1,
+                            'reference_no'    => $expense->reference_no,
+                            'note'            => "Added to inventory from Expense Ref: {$expense->reference_no}",
+                            'user_id'         => auth()->id(),
+                        ]);
+                    }
+                }
+            } else {
+                $item = \Plugins\InventoryManager\Models\InventoryItem::create([
+                    'category_id'           => $this->trackCategoryId,
+                    'batch_id'              => $batchId,
+                    'expense_id'            => $expense->id,
+                    'title'                 => $expense->title,
+                    'brand'                 => $this->trackBrand ?: null,
+                    'model_no'              => $this->trackModel ?: null,
+                    'tracking_type'         => 'bulk',
+                    'quantity'              => $qty,
+                    'purchase_price'        => $unitPrice,
+                    'purchase_date'         => $expense->expense_date,
+                    'supplier'              => $this->trackSupplier ?: null,
+                    'warranty_months'       => $this->trackWarrantyMonths,
+                    'status'                => 'in_stock',
+                    'current_location_type' => 'warehouse',
+                    'current_location_name' => 'Main Store',
+                    'created_by'            => auth()->id(),
+                ]);
+
+                \Plugins\InventoryManager\Models\InventoryStockLog::create([
+                    'item_id'         => $item->id,
+                    'type'            => 'purchase',
+                    'quantity_change' => $qty,
+                    'balance_after'   => $qty,
+                    'reference_no'    => $expense->reference_no,
+                    'note'            => "Added {$qty} bulk units from Expense Ref: {$expense->reference_no}",
+                    'user_id'         => auth()->id(),
+                ]);
+            }
+        });
+
+        flash()->success("Successfully linked {$qty} item(s) to Inventory Stock!");
+        $this->showTrackModal = false;
+        $this->trackExpenseId = null;
     }
 
     public function updatedFilterCategory(): void { $this->resetPage(); }
@@ -232,7 +594,7 @@ class ExpenseManager extends Component
 
     public function render()
     {
-        $query = IspExpense::with(['addedBy', 'linkedUser', 'linkedReseller.user'])
+        $query = IspExpense::with(['addedBy', 'linkedUser', 'linkedReseller.user', 'inventoryItems.category', 'inventoryItems.customer'])
                            ->orderBy('expense_date', 'desc');
 
         if ($this->filterCategory) {
@@ -273,9 +635,12 @@ class ExpenseManager extends Component
 
         // Resellers for payout dropdown
         $resellers = Reseller::with('user')->where('status', 'active')->get();
+        $inventoryCategories = class_exists(\Plugins\InventoryManager\Models\InventoryCategory::class)
+            ? \Plugins\InventoryManager\Models\InventoryCategory::all()
+            : collect();
 
         return view('livewire.admin.expense-manager', compact(
-            'expenses', 'totals', 'grandTotal', 'categories', 'years', 'months', 'resellers'
+            'expenses', 'totals', 'grandTotal', 'categories', 'years', 'months', 'resellers', 'inventoryCategories'
         ))->layout('layouts.app');
     }
 }

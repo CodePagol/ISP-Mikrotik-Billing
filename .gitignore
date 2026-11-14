@@ -26,3 +26,6 @@ yarn-error.log
 # Local backup / copy files
 * copy.php
 *.sql
+
+# Standalone Plugin Repositories
+/plugins/inventory-manager

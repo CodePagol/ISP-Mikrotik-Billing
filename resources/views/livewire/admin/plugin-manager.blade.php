@@ -16,6 +16,15 @@
             </div>
 
             <div class="d-flex align-items-center gap-2">
+                <button wire:click="checkUpdates(true)" wire:loading.attr="disabled"
+                    class="btn btn-sm btn-outline-secondary rounded-3 px-3 fw-semibold shadow-sm" title="{{ __('Check GitHub for new updates') }}">
+                    <span wire:loading.remove wire:target="checkUpdates">
+                        <i class="bi bi-arrow-repeat me-1"></i> {{ __('Check for Updates') }}
+                    </span>
+                    <span wire:loading wire:target="checkUpdates">
+                        <span class="spinner-border spinner-border-sm me-1"></span> {{ __('Checking...') }}
+                    </span>
+                </button>
                 <button wire:click="$set('activeTab', 'installed')" 
                     class="btn btn-sm {{ $activeTab === 'installed' ? 'btn-primary' : 'btn-outline-secondary' }} rounded-3 px-3 fw-semibold shadow-sm">
                     <i class="bi bi-grid-fill me-1"></i> {{ __('Installed Plugins') }} 
@@ -69,6 +78,33 @@
         {{-- TAB 1: INSTALLED PLUGINS                                           --}}
         {{-- ══════════════════════════════════════════════════════════════════ --}}
         @if ($activeTab === 'installed')
+            {{-- Core System Update Notification Banner --}}
+            @if (!empty($coreUpdateInfo['has_update']))
+                <div class="card border-0 shadow-sm rounded-4 mb-4" style="background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%); border-left: 5px solid #2563eb !important;">
+                    <div class="card-body p-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; background: rgba(37, 99, 235, 0.12) !important;">
+                                <i class="bi bi-arrow-up-circle-fill fs-4" style="color: #2563eb !important;"></i>
+                            </div>
+                            <div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <h6 class="fw-bold mb-0 text-dark">{{ __('ISP Mikrotik Billing System Update Available!') }}</h6>
+                                    <span class="badge badge-subtle-primary rounded-pill fw-semibold">v{{ $coreUpdateInfo['latest_version'] }}</span>
+                                </div>
+                                <p class="text-muted small mb-0">
+                                    {{ __('Your current version is v:curr. A newer system release is ready with new features and fixes.', ['curr' => $coreUpdateInfo['current_version']]) }}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <button wire:click="openCoreChangelog" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm fw-semibold">
+                                <i class="bi bi-journal-text me-1"></i> {{ __('View Changelog & Update') }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
             @if (count($plugins) === 0)
                 <div class="card border-0 shadow-sm rounded-4 text-center py-5">
                     <div class="card-body">
@@ -98,10 +134,21 @@
                                             </div>
                                             <div>
                                                 <h6 class="fw-bold text-dark mb-0">{{ $plugin['name'] }}</h6>
-                                                <div class="d-flex align-items-center gap-2 mt-1">
-                                                    <span class="badge bg-secondary-subtle text-secondary border font-monospace" style="font-size: 0.72rem;">
+                                                <div class="d-flex align-items-center gap-2 mt-1 flex-wrap">
+                                                    <span class="badge badge-subtle-secondary border font-monospace" style="font-size: 0.72rem;">
                                                         v{{ $plugin['version'] }}
                                                     </span>
+                                                    @if (!empty($plugin['update_info']['has_update']))
+                                                        <button wire:click="openPluginChangelog('{{ $plugin['id'] }}')" class="btn btn-xs p-0 border-0" style="background:none;">
+                                                            <span class="badge badge-subtle-warning text-dark border border-warning rounded-pill px-2 py-0.5 cursor-pointer" style="font-size: 0.68rem;" title="{{ __('Click to view changelog') }}">
+                                                                <i class="bi bi-arrow-up-circle-fill text-warning me-1"></i> v{{ $plugin['update_info']['latest_version'] }} {{ __('Available') }}
+                                                            </span>
+                                                        </button>
+                                                    @else
+                                                        <span class="badge badge-subtle-success rounded-pill px-2 py-0.5" style="font-size: 0.68rem;">
+                                                            <i class="bi bi-check-circle me-1"></i> {{ __('Up to date') }}
+                                                        </span>
+                                                    @endif
                                                     <span class="text-muted small" style="font-size: 0.75rem;">
                                                         by <strong>{{ $plugin['author'] }}</strong>
                                                     </span>
@@ -154,12 +201,12 @@
 
                                     {{-- Actions Footer --}}
                                     <div class="d-flex align-items-center justify-content-between pt-3 border-top mt-auto">
-                                        <div class="d-flex gap-1 flex-wrap">
-                                            @if ($plugin['is_git_repo'])
-                                                <button wire:click="pullGitUpdate('{{ $plugin['id'] }}')" 
-                                                    title="{{ __('Pull latest updates from Git') }}"
-                                                    class="btn btn-sm btn-outline-dark rounded-3 px-2 py-1" style="font-size: 0.78rem;">
-                                                    <i class="bi bi-git"></i> {{ __('Git Pull') }}
+                                        <div class="d-flex gap-1 flex-wrap align-items-center">
+                                            @if (!empty($plugin['update_info']['has_update']))
+                                                <button wire:click="openPluginChangelog('{{ $plugin['id'] }}')" 
+                                                    title="{{ __('View changelog and update plugin') }}"
+                                                    class="btn btn-sm btn-warning rounded-pill px-3 py-1 fw-bold shadow-sm" style="font-size: 0.78rem;">
+                                                    <i class="bi bi-arrow-up-circle-fill me-1"></i> {{ __('Update: v:ver', ['ver' => $plugin['update_info']['latest_version']]) }}
                                                 </button>
                                             @endif
 
@@ -467,6 +514,91 @@ Hooks::filter('customer.table.columns', function($columns) {<br>
                             <button type="button" class="btn btn-primary rounded-3 px-4 fw-semibold" wire:click="saveLicenseKey">
                                 <i class="bi bi-check2 me-1"></i> {{ __('Save & Activate') }}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        {{-- ══════════════════════════════════════════════════════════════════ --}}
+        {{-- CHANGELOG & UPDATE MODAL                                           --}}
+        {{-- ══════════════════════════════════════════════════════════════════ --}}
+        @if ($showChangelogModal && $activeChangelog)
+            <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.55); z-index: 1055;">
+                <div class="modal-dialog modal-dialog-centered modal-lg">
+                    <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                        {{-- Modal Header --}}
+                        <div class="modal-header border-0 py-3 px-4" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
+                            <div>
+                                <span class="badge bg-primary text-uppercase px-2 py-0.5 mb-1" style="font-size: 10px;">
+                                    {{ $activeChangelog['type'] === 'core' ? __('System Core Update') : __('Plugin Update') }}
+                                </span>
+                                <h5 class="modal-title fw-bold text-white mb-0 d-flex align-items-center gap-2">
+                                    <i class="bi bi-rocket-takeoff-fill text-warning"></i>
+                                    {{ $activeChangelog['name'] }}
+                                </h5>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white" wire:click="closeChangelogModal"></button>
+                        </div>
+
+                        {{-- Modal Body --}}
+                        <div class="modal-body p-4" style="max-height: 65vh; overflow-y: auto;">
+                            {{-- Version comparison pill --}}
+                            <div class="d-flex flex-wrap align-items-center justify-content-between p-3 mb-4 rounded-3 border" style="background: #f8fafc;">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div>
+                                        <small class="text-muted d-block" style="font-size: 11px;">{{ __('Current Version') }}</small>
+                                        <span class="badge badge-subtle-secondary rounded-pill px-2.5 py-1 font-monospace">
+                                            v{{ $activeChangelog['current_version'] }}
+                                        </span>
+                                    </div>
+                                    <i class="bi bi-arrow-right text-primary fs-5 mx-1"></i>
+                                    <div>
+                                        <small class="text-muted d-block" style="font-size: 11px;">{{ __('New Version') }}</small>
+                                        <span class="badge badge-subtle-success rounded-pill px-2.5 py-1 font-monospace fw-bold">
+                                            v{{ $activeChangelog['latest_version'] }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <small class="text-muted d-block" style="font-size: 11px;">{{ __('Release Date') }}</small>
+                                    <span class="fw-semibold text-dark small">{{ $activeChangelog['release_date'] }}</span>
+                                </div>
+                            </div>
+
+                            {{-- Changelog Content --}}
+                            <h6 class="fw-bold text-dark mb-2 d-flex align-items-center gap-2">
+                                <i class="bi bi-journal-text text-primary"></i>
+                                {{ __('What\'s New in this Release') }}
+                            </h6>
+                            <div class="p-3 rounded-3 border bg-light text-dark changelog-box" style="font-size: 13.5px; line-height: 1.6;">
+                                {!! $activeChangelog['changelog_html'] !!}
+                            </div>
+                        </div>
+
+                        {{-- Modal Footer --}}
+                        <div class="modal-footer border-top bg-light py-3 px-4 d-flex justify-content-between">
+                            @if (!empty($activeChangelog['html_url']))
+                                <a href="{{ $activeChangelog['html_url'] }}" target="_blank" class="btn btn-sm btn-link text-muted text-decoration-none">
+                                    <i class="bi bi-box-arrow-up-right me-1"></i> {{ __('View on GitHub') }}
+                                </a>
+                            @else
+                                <div></div>
+                            @endif
+
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" wire:click="closeChangelogModal">
+                                    {{ __('Close') }}
+                                </button>
+                                <button type="button" class="btn btn-sm btn-primary rounded-pill px-4 fw-semibold shadow-sm" wire:click="applyUpdate" wire:loading.attr="disabled">
+                                    <span wire:loading.remove wire:target="applyUpdate">
+                                        <i class="bi bi-cloud-arrow-down-fill me-1"></i> {{ __('Update Now to v:ver', ['ver' => $activeChangelog['latest_version']]) }}
+                                    </span>
+                                    <span wire:loading wire:target="applyUpdate">
+                                        <span class="spinner-border spinner-border-sm me-1"></span> {{ __('Updating, please wait...') }}
+                                    </span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

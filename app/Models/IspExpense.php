@@ -44,6 +44,17 @@ class IspExpense extends Model
         'miscellaneous'     => 'secondary',
     ];
 
+    public static function generateReferenceNo(): string
+    {
+        $latest = static::whereNotNull('reference_no')->latest('id')->first();
+        if ($latest && preg_match('/EXP-(\d+)/', $latest->reference_no, $matches)) {
+            $nextNum = str_pad((int) $matches[1] + 1, 4, '0', STR_PAD_LEFT);
+            return 'EXP-' . $nextNum;
+        }
+
+        return 'EXP-' . str_pad(static::count() + 1, 4, '0', STR_PAD_LEFT);
+    }
+
     public function getCategoryLabelAttribute(): string
     {
         return self::$categories[$this->category] ?? ucfirst($this->category);
@@ -69,6 +80,35 @@ class IspExpense extends Model
     public function linkedReseller()
     {
         return $this->belongsTo(Reseller::class, 'linked_reseller_id');
+    }
+
+    /** Inventory items purchased under this expense */
+    public function inventoryItems()
+    {
+        return $this->hasMany(\Plugins\InventoryManager\Models\InventoryItem::class, 'expense_id');
+    }
+
+    /** Summary of inventory stock status for this purchase */
+    public function getInventorySummaryAttribute(): array
+    {
+        if ($this->category !== 'item_purchase') {
+            return ['tracked' => false, 'count' => 0];
+        }
+
+        $items = $this->inventoryItems;
+        if ($items->isEmpty()) {
+            return ['tracked' => false, 'count' => 0];
+        }
+
+        return [
+            'tracked'   => true,
+            'count'     => $items->count(),
+            'total_qty' => (float) $items->sum('quantity'),
+            'in_stock'  => (float) $items->where('status', 'in_stock')->sum('quantity'),
+            'deployed'  => (float) $items->where('status', 'deployed')->sum('quantity'),
+            'damaged'   => (float) $items->where('status', 'damaged')->sum('quantity'),
+            'repair'    => (float) $items->where('status', 'under_repair')->sum('quantity'),
+        ];
     }
 
     public function scopeByMonth($query, int $month, int $year)

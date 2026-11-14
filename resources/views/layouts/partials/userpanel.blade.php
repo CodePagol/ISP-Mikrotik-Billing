@@ -1,5 +1,15 @@
 {{-- theme, alerts and settings --}}
 <ul class="navbar-nav navbar-nav-icons ms-auto flex-row align-items-center">
+    @php
+        $systemUpdate = \Illuminate\Support\Facades\Cache::get('core_system_update_check');
+    @endphp
+    @if (!empty($systemUpdate['has_update']) && auth()->user()?->hasRole('Super Admin'))
+        <li class="nav-item d-none d-md-block pe-2">
+            <a href="{{ route('admin.plugins') }}" class="badge badge-subtle-warning text-dark text-decoration-none rounded-pill px-2.5 py-1 shadow-2xs" title="{{ __('System Update Available: v:ver', ['ver' => $systemUpdate['latest_version']]) }}">
+                <i class="bi bi-arrow-up-circle-fill text-warning me-1"></i> {{ __('Update: v:ver', ['ver' => $systemUpdate['latest_version']]) }}
+            </a>
+        </li>
+    @endif
     <li class="nav-item dropdown" wire:ignore
         x-data="{
             current: new Date('{{ now()->format('Y-m-d H:i:s') }}'),

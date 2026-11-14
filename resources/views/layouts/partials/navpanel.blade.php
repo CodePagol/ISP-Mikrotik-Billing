@@ -21,6 +21,7 @@
                                 <a wire:navigate.hover wire:current="active" class="dropdown-item link-600 fw-medium"
                                     href="{{ route('reseller.customers.create') }}">{{ __('New Customer') }}</a>
                             @endcan
+                            @include('layouts.partials.plugin-navbar-items', ['parent' => ['reseller_customers', 'customers']])
                         </div>
                     </div>
                 </li>
@@ -53,6 +54,7 @@
                                 <a wire:navigate.hover wire:current="active" class="dropdown-item link-600 fw-medium"
                                     href="{{ route('collection-report.index') }}">{{ __('Collection Report') }}</a>
                             @endcanany
+                            @include('layouts.partials.plugin-navbar-items', ['parent' => ['reseller_billing', 'billing', 'collections']])
                         </div>
                     </div>
                 </li>
@@ -70,6 +72,7 @@
                             href="{{ route('reseller.wallet.index') }}">{{ __('Wallet & Earnings') }}</a>
                         <a wire:navigate.hover wire:current="active" class="dropdown-item link-600 fw-medium"
                             href="{{ route('reseller.vouchers.index') }}">{{ __('Vouchers') }}</a>
+                        @include('layouts.partials.plugin-navbar-items', ['parent' => ['reseller_account', 'wallet', 'vouchers']])
                     </div>
                 </div>
             </li>
@@ -80,6 +83,7 @@
                         href="{{ route('reseller.packages.index') }}" role="button">{{ __('Packages') }}</a>
                 </li>
             @endcan
+            @include('layouts.partials.plugin-navbar-custom-sections')
         </ul>
     @else
         <ul class="navbar-nav" data-top-nav-dropdowns="data-top-nav-dropdowns">
@@ -88,6 +92,19 @@
                 <a wire:navigate.hover wire:current="active" class="nav-link" href="{{ route('dashboard') }}"
                     role="button">{{ __('Dashboard') }}</a>
             </li>
+            @php
+                $topNavDashboardItems = \App\Support\PluginNav::getByParent('dashboard', 'navbar');
+            @endphp
+            @if(!empty($topNavDashboardItems))
+                @foreach($topNavDashboardItems as $dItem)
+                    <li class="nav-item">
+                        <a wire:navigate.hover wire:current="active" class="nav-link" href="{{ \App\Support\PluginNav::resolveUrl($dItem) }}" role="button">
+                            @if(!empty($dItem['icon']))<i class="{{ $dItem['icon'] }} me-1"></i>@endif
+                            {{ __($dItem['title'] ?? '') }}
+                        </a>
+                    </li>
+                @endforeach
+            @endif
             <li class="nav-item">
                 <a wire:navigate.hover wire:current="active" class="nav-link" href="{{ route('mikrotik-sync') }}"
                     role="button">{{ __('Mikrotik Sync') }}</a>
@@ -132,6 +149,7 @@
                             href="{{ route('mikrotik-hotspot-manager') }}">
                             <span>📶 {{ __('Hotspot Manager') }}</span>
                         </a>
+                        @include('layouts.partials.plugin-navbar-items', ['parent' => ['mikrotik', 'mikrotik_setup']])
                     </div>
                 </div>
             </li>
@@ -159,6 +177,19 @@
                 <a wire:navigate.hover wire:current="active" class="nav-link" href="{{ route('admin-tickets') }}"
                     role="button">{{ __('Support Tickets') }}</a>
             </li>
+            @php
+                $topNavCustomerItems = \App\Support\PluginNav::getByParent('customers', 'navbar');
+            @endphp
+            @if(!empty($topNavCustomerItems))
+                @foreach($topNavCustomerItems as $cItem)
+                    <li class="nav-item">
+                        <a wire:navigate.hover wire:current="active" class="nav-link" href="{{ \App\Support\PluginNav::resolveUrl($cItem) }}" role="button">
+                            @if(!empty($cItem['icon']))<i class="{{ $cItem['icon'] }} me-1"></i>@endif
+                            {{ __($cItem['title'] ?? '') }}
+                        </a>
+                    </li>
+                @endforeach
+            @endif
             <li class="nav-item dropdown">
                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
                     aria-haspopup="true" aria-expanded="false" id="collections">{{ __('Collection') }}</a>
@@ -177,6 +208,7 @@
                             href="{{ route('payment-invoice') }}">
                             {{ __('Payment Invoice') }}
                         </a>
+                        @include('layouts.partials.plugin-navbar-items', ['parent' => 'billing'])
                     </div>
                 </div>
             </li>
@@ -200,6 +232,7 @@
                             {{ __('DIS Summary') }}
                             <span class="badge rounded-pill ms-2 badge-subtle-success">{{ __('New') }}</span>
                         </a>
+                        @include('layouts.partials.plugin-navbar-items', ['parent' => 'reports'])
                     </div>
                 </div>
             </li>
@@ -219,6 +252,7 @@
                             href="{{ route('admin.profit-summary') }}">
                             {{ __('Profit & Loss') }}
                         </a>
+                        @include('layouts.partials.plugin-navbar-items', ['parent' => 'finance'])
                     </div>
                 </div>
             </li>
@@ -264,9 +298,11 @@
                             href="{{ route('sms-bridge.index') }}">
                             {{ __('SMS Bridge') }}
                         </a>
+                        @include('layouts.partials.plugin-navbar-items', ['parent' => ['admin', 'logs', 'sms']])
                     </div>
                 </div>
             </li>
+            @include('layouts.partials.plugin-navbar-custom-sections')
         </ul>
     @endif
 @else
