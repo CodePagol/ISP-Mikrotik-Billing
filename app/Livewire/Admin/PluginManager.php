@@ -6,7 +6,9 @@ use App\Contracts\PluginContract;
 use App\Services\UpdateManagerService;
 use App\Support\PluginManager as PluginManagerService;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
 use Livewire\Component;
@@ -17,8 +19,13 @@ class PluginManager extends Component
 {
     use WithFileUploads;
 
-    public string $activeTab = 'installed'; // 'installed' | 'install' | 'docs'
+    public string $activeTab = 'installed'; // 'installed' | 'marketplace' | 'install' | 'docs'
     public string $installMethod = 'zip';   // 'zip' | 'git' | 'composer'
+
+    // Marketplace state
+    public string $marketplaceSearch = '';
+    public string $marketplaceCategory = 'all';
+    public ?string $installingPluginId = null;
 
     // 1. Upload ZIP state
     public $zipFile = null;
@@ -108,6 +115,153 @@ class PluginManager extends Component
         }
 
         return $plugins;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Marketplace & Catalog Engine
+    // ──────────────────────────────────────────────────────────────────────────
+    public function getMarketplacePluginsProperty(): array
+    {
+        $catalog = Cache::remember('marketplace_catalog_feed', now()->addMinutes(30), function () {
+            $url = config('services.marketplace.url', 'https://raw.githubusercontent.com/CodePagol/ISP-Mikrotik-Billing/main/marketplace.json');
+            try {
+                $response = Http::timeout(10)->get($url . '?v=' . time());
+                if ($response->successful() && is_array($response->json())) {
+                    return $response->json();
+                }
+            } catch (\Throwable $e) {
+                Log::warning("[PluginManager] Remote marketplace feed error: {$e->getMessage()}");
+            }
+
+            // Fallback to local catalog if present
+            $localPath = base_path('marketplace.json');
+            if (file_exists($localPath)) {
+                return json_decode(file_get_contents($localPath), true) ?: [];
+            }
+
+            return [];
+        });
+
+        $enriched = [];
+        foreach ($catalog as $item) {
+            $slug = $item['id'] ?? '';
+            if (empty($slug)) {
+                continue;
+            }
+
+            $localMetaPath = base_path("plugins/{$slug}/plugin.json");
+            $isInstalled = file_exists($localMetaPath);
+            $installedVersion = null;
+            $updateAvailable = false;
+
+            if ($isInstalled) {
+                $meta = json_decode(file_get_contents($localMetaPath), true) ?: [];
+                $installedVersion = $meta['version'] ?? '1.0.0';
+                $catalogVersion = $item['version'] ?? '1.0.0';
+                if (version_compare($catalogVersion, $installedVersion, '>')) {
+                    $updateAvailable = true;
+                }
+            }
+
+            $item['is_installed'] = $isInstalled;
+            $item['installed_version'] = $installedVersion;
+            $item['update_available'] = $updateAvailable;
+
+            // Search filter
+            if (! empty($this->marketplaceSearch)) {
+                $q = strtolower(trim($this->marketplaceSearch));
+                $matchName = str_contains(strtolower($item['name'] ?? ''), $q);
+                $matchDesc = str_contains(strtolower($item['description'] ?? ''), $q);
+                $matchTags = in_array($q, array_map('strtolower', $item['tags'] ?? []));
+                if (! $matchName && ! $matchDesc && ! $matchTags) {
+                    continue;
+                }
+            }
+
+            // Category filter
+            if ($this->marketplaceCategory !== 'all') {
+                if (empty($item['category']) || strtolower($item['category']) !== strtolower($this->marketplaceCategory)) {
+                    continue;
+                }
+            }
+
+            $enriched[] = $item;
+        }
+
+        return $enriched;
+    }
+
+    public function refreshMarketplace(): void
+    {
+        Cache::forget('marketplace_catalog_feed');
+        $this->successMessage = __('Marketplace catalog refreshed successfully.');
+    }
+
+    public function installFromMarketplace(string $pluginId): void
+    {
+        $this->resetMessages();
+        $this->installingPluginId = $pluginId;
+
+        $target = null;
+        foreach ($this->marketplacePlugins as $item) {
+            if (($item['id'] ?? '') === $pluginId) {
+                $target = $item;
+                break;
+            }
+        }
+
+        if (! $target) {
+            $this->errorMessage = "Plugin [{$pluginId}] not found in marketplace catalog.";
+            $this->installingPluginId = null;
+            return;
+        }
+
+        $downloadUrl = $target['download_url'] ?? null;
+        if (empty($downloadUrl)) {
+            $this->errorMessage = "Direct download URL not available for plugin [{$pluginId}].";
+            $this->installingPluginId = null;
+            return;
+        }
+
+        try {
+            $tempZip = storage_path('app/temp-plugins/' . uniqid('marketplace_') . '.zip');
+            if (! is_dir(dirname($tempZip))) {
+                mkdir(dirname($tempZip), 0755, true);
+            }
+
+            // Download ZIP package
+            $response = Http::timeout(180)->withHeaders([
+                'User-Agent' => 'ISP-Mikrotik-Billing-Marketplace-Installer',
+            ])->get($downloadUrl);
+
+            if (! $response->successful()) {
+                $this->errorMessage = "Failed to download plugin package: HTTP " . $response->status();
+                $this->installingPluginId = null;
+                return;
+            }
+
+            file_put_contents($tempZip, $response->body());
+
+            // Extract and install using native safe extractor
+            [$success, $message] = $this->extractAndInstallZip($tempZip, null);
+
+            if (file_exists($tempZip)) {
+                @unlink($tempZip);
+            }
+
+            if ($success) {
+                Cache::forget('marketplace_catalog_feed');
+                $pluginName = $target['name'] ?? $pluginId;
+                $this->successMessage = "Plugin [{$pluginName}] installed and activated successfully from Marketplace!";
+            } else {
+                $this->errorMessage = $message;
+            }
+        } catch (\Throwable $e) {
+            Log::error("[PluginManager] Marketplace installation error [{$pluginId}]: {$e->getMessage()}");
+            $this->errorMessage = "Installation failed: " . $e->getMessage();
+        } finally {
+            $this->installingPluginId = null;
+        }
     }
 
     // ──────────────────────────────────────────────────────────────────────────

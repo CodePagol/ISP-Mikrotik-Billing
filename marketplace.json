@@ -1,0 +1,44 @@
+[
+    {
+        "id": "inventory-manager",
+        "name": "Inventory & Asset Manager",
+        "version": "1.0.1",
+        "description": "Comprehensive ISP inventory and hardware tracking: routers, ONUs, switches, cables, customer deployments, damage replacement, and expense integration.",
+        "author": "Code Pagol Ltd",
+        "author_url": "https://codepagol.com",
+        "icon": "bi-boxes",
+        "category": "Hardware & Inventory",
+        "repository": "https://github.com/CodePagol/ISP-Billing-inventory-manager",
+        "download_url": "https://github.com/CodePagol/ISP-Billing-inventory-manager/archive/refs/tags/v1.0.1.zip",
+        "is_free": true,
+        "tags": [
+            "inventory",
+            "hardware",
+            "routers",
+            "onus",
+            "assets",
+            "expenses"
+        ]
+    },
+    {
+        "id": "olt-manager",
+        "name": "EPON/GPON OLT Manager",
+        "version": "1.0.0",
+        "description": "Enterprise OLT integration: auto-discovery, PON port diagnostics, optical Rx/Tx signal monitoring, customer ONU binding, and automated provisioning.",
+        "author": "Code Pagol Ltd",
+        "author_url": "https://codepagol.com",
+        "icon": "bi-hdd-network",
+        "category": "Networking & OLT",
+        "repository": "https://github.com/CodePagol/ISP-Billing-olt-manager",
+        "download_url": "https://github.com/CodePagol/ISP-Billing-olt-manager/archive/refs/tags/v1.0.0.zip",
+        "is_free": false,
+        "tags": [
+            "olt",
+            "epon",
+            "gpon",
+            "pon",
+            "onu",
+            "network"
+        ]
+    }
+]

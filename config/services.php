@@ -43,4 +43,8 @@ return [
         'app_secret' => env('BKASH_APP_SECRET'),
         'ipn_secret' => env('BKASH_IPN_SECRET'), // shared secret for HMAC-SHA256 webhook signature
     ],
+
+    'marketplace' => [
+        'url' => env('MARKETPLACE_CATALOG_URL', 'https://raw.githubusercontent.com/CodePagol/ISP-Mikrotik-Billing/main/marketplace.json'),
+    ],
 ];

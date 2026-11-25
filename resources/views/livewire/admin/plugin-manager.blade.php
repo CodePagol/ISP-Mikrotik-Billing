@@ -30,9 +30,14 @@
                     <i class="bi bi-grid-fill me-1"></i> {{ __('Installed Plugins') }} 
                     <span class="badge bg-white text-dark ms-1">{{ count($plugins) }}</span>
                 </button>
+                <button wire:click="$set('activeTab', 'marketplace')" 
+                    class="btn btn-sm {{ $activeTab === 'marketplace' ? 'btn-primary' : 'btn-outline-secondary' }} rounded-3 px-3 fw-semibold shadow-sm">
+                    <i class="bi bi-shop me-1 text-warning"></i> {{ __('Marketplace') }}
+                    <span class="badge {{ $activeTab === 'marketplace' ? 'bg-white text-dark' : 'bg-success text-white' }} ms-1">Store</span>
+                </button>
                 <button wire:click="$set('activeTab', 'install')" 
                     class="btn btn-sm {{ $activeTab === 'install' ? 'btn-primary' : 'btn-outline-primary' }} rounded-3 px-3 fw-semibold shadow-sm">
-                    <i class="bi bi-plus-circle-fill me-1"></i> {{ __('Install Plugin') }}
+                    <i class="bi bi-plus-circle-fill me-1"></i> {{ __('Upload / Custom') }}
                 </button>
                 <button wire:click="$set('activeTab', 'docs')" 
                     class="btn btn-sm {{ $activeTab === 'docs' ? 'btn-primary' : 'btn-outline-secondary' }} rounded-3 px-3 fw-semibold shadow-sm">
@@ -231,6 +236,179 @@
                                             class="btn btn-sm btn-outline-danger rounded-3 px-2 py-1" style="font-size: 0.78rem;" title="{{ __('Uninstall & Delete Plugin') }}">
                                             <i class="bi bi-trash3-fill"></i> {{ __('Uninstall') }}
                                         </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        @endif
+
+        {{-- ══════════════════════════════════════════════════════════════════ --}}
+        {{-- TAB: PLUGIN MARKETPLACE (1-CLICK INSTALL STORE)                    --}}
+        {{-- ══════════════════════════════════════════════════════════════════ --}}
+        @if ($activeTab === 'marketplace')
+            {{-- Search & Filter Bar --}}
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-body p-3 p-md-4">
+                    <div class="row g-3 align-items-center">
+                        <div class="col-12 col-md-5 col-lg-6">
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0 text-secondary">
+                                    <i class="bi bi-search"></i>
+                                </span>
+                                <input type="text" 
+                                       wire:model.live.debounce.300ms="marketplaceSearch" 
+                                       class="form-control border-start-0 ps-0 shadow-none" 
+                                       placeholder="{{ __('Search plugins by name, keyword, or tag...') }}">
+                                @if ($marketplaceSearch)
+                                    <button class="btn btn-outline-secondary border-start-0" type="button" wire:click="$set('marketplaceSearch', '')">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                @endif
+                            </div>
+                        </div>
+
+                        <div class="col-6 col-md-4 col-lg-4">
+                            <select wire:model.live="marketplaceCategory" class="form-select shadow-none">
+                                <option value="all">{{ __('All Categories') }}</option>
+                                <option value="Hardware & Inventory">{{ __('Hardware & Inventory') }}</option>
+                                <option value="Networking & OLT">{{ __('Networking & OLT') }}</option>
+                                <option value="Billing & Finance">{{ __('Billing & Finance') }}</option>
+                            </select>
+                        </div>
+
+                        <div class="col-6 col-md-3 col-lg-2 text-end">
+                            <button wire:click="refreshMarketplace" wire:loading.attr="disabled" class="btn btn-outline-secondary w-100 rounded-3 fw-semibold">
+                                <span wire:loading.remove wire:target="refreshMarketplace">
+                                    <i class="bi bi-arrow-clockwise me-1"></i> {{ __('Refresh') }}
+                                </span>
+                                <span wire:loading wire:target="refreshMarketplace">
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Marketplace Grid --}}
+            @if (empty($this->marketplacePlugins))
+                <div class="card border-0 shadow-sm rounded-4 text-center py-5">
+                    <div class="card-body py-5">
+                        <div class="mb-3">
+                            <i class="bi bi-search text-secondary display-4"></i>
+                        </div>
+                        <h5 class="fw-bold text-dark">{{ __('No plugins found') }}</h5>
+                        <p class="text-secondary mb-3">{{ __('Try adjusting your search criteria or refresh the catalog.') }}</p>
+                        @if ($marketplaceSearch || $marketplaceCategory !== 'all')
+                            <button wire:click="$set('marketplaceSearch', ''); $set('marketplaceCategory', 'all');" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                {{ __('Reset Filters') }}
+                            </button>
+                        @endif
+                    </div>
+                </div>
+            @else
+                <div class="row g-3 g-md-4">
+                    @foreach ($this->marketplacePlugins as $item)
+                        @php
+                            $isInstalled = $item['is_installed'] ?? false;
+                            $updateAvailable = $item['update_available'] ?? false;
+                            $installedVer = $item['installed_version'] ?? null;
+                            $catalogVer = $item['version'] ?? '1.0.0';
+                            $slug = $item['id'] ?? '';
+                            $isInstallingThis = ($installingPluginId === $slug);
+                        @endphp
+                        <div class="col-12 col-md-6 col-xl-4 d-flex">
+                            <div class="card border-0 shadow-sm rounded-4 w-100 d-flex flex-column transition-all" 
+                                 style="transition: transform 0.2s, box-shadow 0.2s;">
+                                <div class="card-body p-4 d-flex flex-column">
+                                    {{-- Card Header: Icon, Title, Version --}}
+                                    <div class="d-flex align-items-start gap-3 mb-3">
+                                        <div class="rounded-3 bg-opacity-10 text-primary d-flex align-items-center justify-content-center flex-shrink-0" 
+                                             style="width: 52px; height: 52px; font-size: 1.6rem;">
+                                            <i class="bi {{ $item['icon'] ?? 'bi-plugin' }}"></i>
+                                        </div>
+                                        <div class="flex-grow-1 min-w-0">
+                                            <div class="d-flex align-items-center justify-content-between gap-2">
+                                                <h6 class="fw-bold text-dark mb-0 text-truncate" title="{{ $item['name'] }}">
+                                                    {{ $item['name'] }}
+                                                </h6>
+                                                <span class="badge bg-light text-dark font-monospace border flex-shrink-0">
+                                                    v{{ $catalogVer }}
+                                                </span>
+                                            </div>
+                                            <div class="small text-secondary mt-1">
+                                                @if (!empty($item['author_url']))
+                                                    <a href="{{ $item['author_url'] }}" target="_blank" class="text-decoration-none text-muted">
+                                                        <i class="bi bi-person me-1"></i>{{ $item['author'] ?? 'Code Pagol' }}
+                                                    </a>
+                                                @else
+                                                    <span><i class="bi bi-person me-1"></i>{{ $item['author'] ?? 'Code Pagol' }}</span>
+                                                @endif
+                                                @if (!empty($item['category']))
+                                                    <span class="mx-1">•</span>
+                                                    <span class="text-primary fw-medium">{{ $item['category'] }}</span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {{-- Description --}}
+                                    <p class="text-secondary small mb-3 flex-grow-1" style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.5;">
+                                        {{ $item['description'] ?? '' }}
+                                    </p>
+
+                                    {{-- Tags --}}
+                                    @if (!empty($item['tags']) && is_array($item['tags']))
+                                        <div class="d-flex flex-wrap gap-1 mb-3">
+                                            @foreach (array_slice($item['tags'], 0, 4) as $tag)
+                                                <span class="badge bg-light text-secondary border font-monospace" style="font-size: 0.72rem;">
+                                                    #{{ $tag }}
+                                                </span>
+                                            @endforeach
+                                        </div>
+                                    @endif
+
+                                    {{-- Action Footer --}}
+                                    <div class="pt-3 border-top mt-auto d-flex align-items-center justify-content-between gap-2">
+                                        <div>
+                                            @if ($item['is_free'] ?? true)
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                                    <i class="bi bi-check2 me-1"></i>{{ __('Free / Official') }}
+                                                </span>
+                                            @else
+                                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">
+                                                    {{ __('Premium') }}
+                                                </span>
+                                            @endif
+                                        </div>
+
+                                        <div>
+                                            @if ($isInstalled)
+                                                @if ($updateAvailable)
+                                                    <button wire:click="openPluginChangelog('{{ $slug }}')" 
+                                                            class="btn btn-sm btn-info text-white rounded-pill px-3 shadow-sm fw-semibold">
+                                                        <i class="bi bi-arrow-up-circle me-1"></i> {{ __('Update v') }}{{ $catalogVer }}
+                                                    </button>
+                                                @else
+                                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill fw-semibold">
+                                                        <i class="bi bi-check-circle-fill me-1"></i> {{ __('Installed') }}
+                                                    </span>
+                                                @endif
+                                            @else
+                                                <button wire:click="installFromMarketplace('{{ $slug }}')" 
+                                                        wire:loading.attr="disabled"
+                                                        class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm fw-semibold">
+                                                    @if ($isInstallingThis)
+                                                        <span class="spinner-border spinner-border-sm me-1"></span> {{ __('Installing...') }}
+                                                    @else
+                                                        <i class="bi bi-cloud-arrow-down-fill me-1"></i> {{ __('Install Now') }}
+                                                    @endif
+                                                </button>
+                                            @endif
+                                        </div>
                                     </div>
                                 </div>
                             </div>
