@@ -200,6 +200,18 @@ class UpdateManagerService
         }
 
         try {
+            // Self-healing: if payment_gateway_settings table already exists, mark migration as done to avoid 1050 error
+            try {
+                if (\Illuminate\Support\Facades\Schema::hasTable('payment_gateway_settings')) {
+                    \Illuminate\Support\Facades\DB::table('migrations')->insertOrIgnore([
+                        'migration' => '2026_01_01_000000_create_payment_gateway_settings_table',
+                        'batch'     => 1,
+                    ]);
+                }
+            } catch (\Throwable $ignored) {
+                // Ignore DB error if migrations table doesn't exist yet
+            }
+
             // Run Database Migrations
             Artisan::call('migrate', ['--force' => true]);
             $outputLogs[] = "=== Migrations ===\n" . Artisan::output();

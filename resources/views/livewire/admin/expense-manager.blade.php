@@ -1034,7 +1034,13 @@
         setTimeout(() => {
             iframe.contentWindow.focus();
             iframe.contentWindow.print();
-            setTimeout(() => document.body.removeChild(iframe), 1000);
+            setTimeout(() => {
+                if (iframe && typeof iframe.remove === 'function') {
+                    iframe.remove();
+                } else if (iframe && iframe.parentNode) {
+                    iframe.parentNode.removeChild(iframe);
+                }
+            }, 1000);
         }, 500);
     }
 </script>
